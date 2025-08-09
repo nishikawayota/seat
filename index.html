@@ -6,7 +6,7 @@
 <title>席決めくじ引き</title>
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json?v=14" />
+<link rel="manifest" href="manifest.json?v=16" />
 <meta name="theme-color" content="#3498db" />
 <link rel="icon" href="icons/icon-192.png" />
 
@@ -14,7 +14,7 @@
   :root { --primary:#3498db; --accent:#e74c3c; --bg:#f0f0f0; --gold:#f59e0b; }
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 20px; background: var(--bg); }
   h1 { color: #333; margin-bottom: 10px; }
-  input, button, select, textarea { padding: 10px; font-size: 16px; margin: 6px; }
+  input, button, select { padding: 10px; font-size: 16px; margin: 6px; }
   .btn { background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
   .row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
@@ -22,12 +22,6 @@
   #numberDisplay { font-size: 56px; font-weight: 800; margin: 16px 0 6px; color: var(--accent); min-height: 1.2em; }
   #status { margin-top: 6px; font-size: 16px; color: #2c3e50; min-height: 1.2em; }
   #results { margin-top: 18px; font-size: 18px; text-align:left; max-width: 720px; margin-inline:auto; }
-
-  /* 名簿エリア */
-  #namesWrap { display:grid; grid-template-columns: 1fr; gap:8px; max-width: 720px; margin: 8px auto 0; }
-  #namesInput { width: 100%; height: 120px; resize: vertical; }
-  #currentWrap { display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap; }
-  #currentName { min-width: 200px; }
 
   /* === 当選表示オーバーレイ（通常） === */
   #revealOverlay { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.35); backdrop-filter: blur(2px); z-index: 9999; }
@@ -56,34 +50,28 @@
 
   /* 紙吹雪キャンバス */
   #confettiCanvas { position: fixed; inset:0; z-index: 9998; pointer-events:none; display:none; }
-
-  /* オプション（確率 & TTS） */
-  #options { margin-top: 6px; font-size: 14px; color:#374151; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
-  #options input[type="number"] { width: 6em; text-align: right; }
-  #ttsWrap { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-  #voiceSelect { min-width: 220px; }
-  .range { width: 160px; }
 </style>
 </head>
 <body>
 
 <h1>席決めくじ引き</h1>
 
-<!-- 名簿設定 -->
-<div id="namesWrap">
-  <div style="text-align:left;"><strong>参加者リスト（1行に1名）</strong></div>
-  <textarea id="namesInput" placeholder="例：&#10;田中&#10;佐藤&#10;鈴木"></textarea>
-  <div class="row">
-    <button class="btn" id="setNamesBtn">名簿をセット</button>
-    <span id="namesInfo" style="align-self:center; color:#374151;">未設定</span>
-  </div>
-</div>
+<!-- 参加者（HTML内に固定定義：必要に応じて編集してください） -->
+<script>
+  const PRESET_NAMES = [
+    "田中", "佐藤", "鈴木", "高橋", "伊藤",
+    "渡辺", "山本", "中村", "小林", "加藤"
+  ];
+  /* VOICEVOX 設定（HTTPS推奨のプロキシURL & speaker ID を固定） */
+  const VOICEVOX_BASE   = "https://nishikawayota.github.io/seat/api/voicevox"; // ← 変更してください
+  const VOICEVOX_SPEAKER= 3;  // 例：ずんだもん
+</script>
 
 <!-- 操作行 -->
 <div class="row" id="currentWrap">
   <label for="currentName">今回回す人：</label>
-  <select id="currentName"><option value="">（名簿をセットしてください）</option></select>
-  <input type="number" id="count" placeholder="人数を入力（未入力なら名簿人数）" min="1" inputmode="numeric" />
+  <select id="currentName"></select>
+  <input type="number" id="count" placeholder="人数（未入力=名簿人数）" min="1" inputmode="numeric" />
   <button class="btn" id="startBtn">スタート</button>
   <button class="btn" id="stopBtn" style="display:none;">ストップ！</button>
   <button class="btn" id="resetBtn">リセット</button>
@@ -91,19 +79,10 @@
   <button class="btn" id="updateBtn">🔄 更新</button>
 </div>
 
-<div id="options">
-  <div>
-    ラッキー抽選の確率：
-    <input type="number" id="luckyProb" step="0.001" min="0" max="1" placeholder="未設定なら 1/初期人数" />
-    （0〜1、例：0.1で10%）
-  </div>
-  <div id="ttsWrap">
-    <label><input type="checkbox" id="ttsEnabled" /> 読み上げON</label>
-    <select id="voiceSelect" title="音声（日本語推奨）"></select>
-    <label>速さ <input type="range" id="rate" class="range" min="0.5" max="1.5" step="0.05" value="1" /></label>
-    <label>高さ <input type="range" id="pitch" class="range" min="0" max="2" step="0.1" value="1" /></label>
-    <label>音量 <input type="range" id="volume" class="range" min="0" max="1" step="0.05" value="1" /></label>
-  </div>
+<div class="row" style="font-size:14px; color:#374151;">
+  <span>ラッキー確率：</span>
+  <input type="number" id="luckyProb" step="0.001" min="0" max="1" placeholder="未設定なら 1/初期人数" />
+  <span>（0〜1、例：0.1で10%）</span>
 </div>
 
 <div id="numberDisplay">---</div>
@@ -111,8 +90,8 @@
 <div id="results"></div>
 
 <!-- 効果音 -->
-<audio id="drum" src="sounds/drumroll.mp3?v=14" preload="auto" loop></audio>
-<audio id="fanfare" src="sounds/fanfare.mp3?v=14" preload="auto"></audio>
+<audio id="drum" src="sounds/drumroll.mp3?v=16" preload="auto" loop></audio>
+<audio id="fanfare" src="sounds/fanfare.mp3?v=16" preload="auto"></audio>
 
 <!-- 紙吹雪＆当選リビール（通常） -->
 <canvas id="confettiCanvas"></canvas>
@@ -135,7 +114,25 @@
 </div>
 
 <script>
-/* ================== 状態 ================== */
+/* ====== 名簿（固定） ====== */
+let names = [...PRESET_NAMES];
+let assigned = new Set();
+const currentNameSel = document.getElementById('currentName');
+function populateNameSelect() {
+  const remaining = names.filter(n => !assigned.has(n));
+  currentNameSel.innerHTML = '';
+  if (!remaining.length) {
+    const opt = document.createElement('option'); opt.value=''; opt.text='（全員決定済み）';
+    currentNameSel.appendChild(opt); return;
+  }
+  remaining.forEach(n => {
+    const opt = document.createElement('option'); opt.value=n; opt.text=n;
+    currentNameSel.appendChild(opt);
+  });
+}
+populateNameSelect();
+
+/* ====== 既存抽選ロジック・演出 ====== */
 let seats = [];
 let intervalId = null;
 let currentNumber = null;
@@ -143,12 +140,8 @@ let finished = false;
 let muted = false;
 let totalCount = 0;
 let initialCount = 0;
-
-let names = [];
-let assigned = new Set();
 let currentPlayer = null;
 
-/* ================== 要素参照 ================== */
 const startBtn = document.getElementById('startBtn');
 const stopBtn  = document.getElementById('stopBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -161,11 +154,6 @@ const drum = document.getElementById('drum');
 const fanfare = document.getElementById('fanfare');
 const luckyProbInput = document.getElementById('luckyProb');
 
-const namesInput = document.getElementById('namesInput');
-const setNamesBtn = document.getElementById('setNamesBtn');
-const namesInfo = document.getElementById('namesInfo');
-const currentNameSel = document.getElementById('currentName');
-
 const confettiCanvas = document.getElementById('confettiCanvas');
 const ctx = confettiCanvas.getContext('2d');
 const revealOverlay = document.getElementById('revealOverlay');
@@ -176,78 +164,10 @@ const luckyOverlay = document.getElementById('luckyOverlay');
 const luckyTitle = document.getElementById('luckyTitle');
 const seatGrid = document.getElementById('seatGrid');
 
-/* ================== TTS（Web Speech API） ================== */
-const ttsEnabled = document.getElementById('ttsEnabled');
-const voiceSelect = document.getElementById('voiceSelect');
-const rate = document.getElementById('rate');
-const pitch = document.getElementById('pitch');
-const volume = document.getElementById('volume');
-
-let voices = [];
-function loadVoices(){
-  voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
-  voiceSelect.innerHTML = '';
-  const sorted = voices.slice().sort((a,b)=>{
-    const aj = a.lang && a.lang.startsWith('ja') ? -1 : 1;
-    const bj = b.lang && b.lang.startsWith('ja') ? -1 : 1;
-    if (aj !== bj) return aj - bj;
-    return a.name.localeCompare(b.name);
-  });
-  sorted.forEach(v=>{
-    const opt=document.createElement('option');
-    opt.value=v.name; opt.textContent=`${v.name} (${v.lang})`;
-    voiceSelect.appendChild(opt);
-  });
-}
-if ('speechSynthesis' in window) {
-  loadVoices();
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}
-function speak(text){
-  if (!ttsEnabled.checked || !('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  const selectedName = voiceSelect.value;
-  const v = voices.find(v => v.name === selectedName) || voices.find(v => v.lang && v.lang.startsWith('ja')) || voices[0];
-  if (v) u.voice = v;
-  u.rate = parseFloat(rate.value) || 1;
-  u.pitch = parseFloat(pitch.value) || 1;
-  u.volume = parseFloat(volume.value) || 1;
-  window.speechSynthesis.cancel(); // 重なりを防止
-  window.speechSynthesis.speak(u);
-}
-function announceNormal(name, seatNo){ speak(`${name} さんは、席番号 ${seatNo} に決定しました。`); }
-function announceLuckyStart(name){ speak(`ラッキー！ ${name} さんは、好きな席を選ぶことができます。残っている席から、一つ選んでください。`); }
-function announceLuckyChosen(name, seatNo){ speak(`ラッキー！ ${name} さんは、席番号 ${seatNo} を選びました。`); }
-
-/* ================== 名簿 ================== */
-function setNamesFromText() {
-  const lines = namesInput.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  names = Array.from(new Set(lines));
-  assigned.clear();
-  populateNameSelect();
-  namesInfo.textContent = names.length ? `参加者数：${names.length}` : '未設定';
-  const countInputEl = document.getElementById('count');
-  if (!countInputEl.value && names.length) countInputEl.value = names.length;
-  localStorage.setItem('seatapp:names', names.join('\n'));
-}
-function populateNameSelect() {
-  const remaining = names.filter(n => !assigned.has(n));
-  currentNameSel.innerHTML = '';
-  if (remaining.length === 0) {
-    const opt = document.createElement('option'); opt.value=''; opt.text='（全員決定済み）';
-    currentNameSel.appendChild(opt); return;
-  }
-  remaining.forEach(n => {
-    const opt = document.createElement('option'); opt.value=n; opt.text=n;
-    currentNameSel.appendChild(opt);
-  });
-}
-setNamesBtn.addEventListener('click', setNamesFromText);
-namesInput.addEventListener('input', ()=> localStorage.setItem('seatapp:names', namesInput.value));
-
-/* ================== 紙吹雪 ================== */
 function resizeCanvas(){ confettiCanvas.width = innerWidth; confettiCanvas.height = innerHeight; }
 addEventListener('resize', resizeCanvas); resizeCanvas();
+
+/* 紙吹雪 */
 let confetti = []; let confettiRunning = false;
 function launchConfetti(duration=1600, count=220, gold=false){
   confetti = [];
@@ -268,49 +188,77 @@ function launchConfetti(duration=1600, count=220, gold=false){
   requestAnimationFrame(tick);
 }
 
-/* ================== ステータス ================== */
+/* ステータス */
 function updateStatus(){
   const remainingSeats = seats.length;
   const remainingPeople = names.filter(n=>!assigned.has(n)).length;
   statusDiv.textContent = finished ? 'ルーレットが終了しました' : `残り座席 ${remainingSeats} / 合計 ${totalCount}　|　未決定の人 ${remainingPeople}`;
 }
 
-/* ================== 初期化 ================== */
+/* 初期化 */
 function initSeats(count){
   totalCount = count; initialCount = count;
   seats = Array.from({length: count}, (_,i)=> i+1);
   finished=false; resultsDiv.innerHTML=''; numberDisplay.textContent='---'; updateStatus();
 }
 
-/* ================== ラッキー判定 ================== */
+/* ラッキー判定 */
 function isLuckyHit(){
   const input = parseFloat(luckyProbInput.value);
   const p = (!isNaN(input) && input>=0 && input<=1) ? input : (initialCount>0 ? (1/initialCount) : 0.1);
   return Math.random() < p;
 }
 
-/* ================== スタート／ストップ ================== */
+/* ==== VOICEVOX 読み上げ（固定設定） ==== */
+async function speakVoiceVox(text){
+  const base = VOICEVOX_BASE.trim().replace(/\/+$/,'');
+  const speaker = parseInt(VOICEVOX_SPEAKER, 10);
+  if (!base) return;
+
+  // 1) audio_query
+  const qParams = new URLSearchParams({ text, speaker: String(speaker) }).toString();
+  const qRes = await fetch(`${base}/audio_query?${qParams}`, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }});
+  if (!qRes.ok) { console.warn('audio_query失敗', qRes.status); return; }
+  const query = await qRes.json();
+
+  // 2) synthesis
+  const sRes = await fetch(`${base}/synthesis?speaker=${speaker}`, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify(query)
+  });
+  if (!sRes.ok) { console.warn('synthesis失敗', sRes.status); return; }
+  const blob = await sRes.blob(); // audio/wav
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.play().catch(()=>{});
+}
+function announceNormal(name, seatNo){ speakVoiceVox(`${name} さんは、席番号 ${seatNo} に決定しました。`); }
+function announceLuckyStart(name){ speakVoiceVox(`ラッキー！ ${name} さんは、好きな席を選ぶことができます。残っている席から、一つ選んでください。`); }
+function announceLuckyChosen(name, seatNo){ speakVoiceVox(`ラッキー！ ${name} さんは、席番号 ${seatNo} を選びました。`); }
+
+/* スタート／ストップ */
 function startDraw(){
   const sel = currentNameSel.value;
-  if (!sel) { alert('今回回す人を選んでください（名簿をセット → 選択）'); return; }
+  if (!sel) { alert('今回回す人を選んでください'); return; }
   if (assigned.has(sel)) { alert('その方はすでに決定済みです。別の方を選んでください。'); return; }
   currentPlayer = sel;
 
   const countInput = parseInt(document.getElementById('count').value);
   if (!seats.length && !finished) {
     const effectiveCount = (!isNaN(countInput) && countInput>0) ? countInput : (names.length || 0);
-    if (!effectiveCount) { alert('人数を入力するか、名簿をセットしてください'); return; }
+    if (!effectiveCount) { alert('人数を入力するか、名簿を編集してください'); return; }
     initSeats(effectiveCount);
   }
   if (finished) return;
 
   stopBtn.style.display='inline-block'; startBtn.disabled=true; resetBtn.disabled=true;
-  currentNameSel.disabled=true; setNamesBtn.disabled=true; namesInput.disabled=true;
+  currentNameSel.disabled=true;
 
   if (!muted) { try { drum.currentTime=0; drum.play(); } catch(e){} }
 
   intervalId = setInterval(()=>{
-    currentNumber = seats[Math.floor(Math.random()*seats.length)];
+    currentNumber = seats[Math.floor(Math.random() * seats.length)];
     numberDisplay.textContent = currentNumber;
   }, 50);
 }
@@ -331,11 +279,10 @@ function stopDraw(){
   if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
   if (!confettiRunning) launchConfetti(1600, 220, false);
 
-  // 読み上げ
-  announceNormal(currentPlayer, currentNumber);
+  announceNormal(currentPlayer, currentNumber); // 読み上げ
 }
 
-/* ================== ラッキー処理 ================== */
+/* ラッキー */
 function showLuckyOverlay(){
   luckyTitle.innerHTML = `<span class="sparkle">✨</span>${currentPlayer} さんは好きな席を選ぶことができます！<span class="sparkle">✨</span>`;
   seatGrid.innerHTML='';
@@ -348,8 +295,7 @@ function showLuckyOverlay(){
   if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
   if (!confettiRunning) launchConfetti(1800, 260, true);
 
-  // 読み上げ
-  announceLuckyStart(currentPlayer);
+  announceLuckyStart(currentPlayer); // 読み上げ
 }
 function chooseLuckySeat(n){
   currentNumber = n;
@@ -358,13 +304,12 @@ function chooseLuckySeat(n){
   resultsDiv.innerHTML += `<div>🎉 <strong>ラッキー！</strong> <strong>${currentPlayer}</strong> さんは 好きな席 <strong>${currentNumber}</strong> を選びました！</div>`;
   numberDisplay.textContent='---';
 
-  // 読み上げ
-  announceLuckyChosen(currentPlayer, currentNumber);
+  announceLuckyChosen(currentPlayer, currentNumber); // 読み上げ
 
   finishOne();
 }
 
-/* ================== 通常オーバーレイ（タップで閉じる） ================== */
+/* 通常オーバーレイ（タップで閉じる） */
 revealOverlay.addEventListener('click', ()=>{
   revealOverlay.style.display='none';
   resultsDiv.innerHTML += `<div>→ <strong>${currentPlayer}</strong> さんは <strong>席番号 ${currentNumber}</strong> に決定しました。</div>`;
@@ -372,16 +317,16 @@ revealOverlay.addEventListener('click', ()=>{
   finishOne();
 });
 
-/* ================== 結果後の共通処理 ================== */
+/* 結果後の共通処理 */
 function finishOne(){
   stopBtn.style.display='none'; startBtn.disabled=false; resetBtn.disabled=false;
   assigned.add(currentPlayer); currentPlayer=null; populateNameSelect();
-  currentNameSel.disabled=false; setNamesBtn.disabled=false; namesInput.disabled=false;
+  currentNameSel.disabled=false;
   if (seats.length===0){ finished=true; startBtn.disabled=true; stopBtn.disabled=true; }
   updateStatus();
 }
 
-/* ================== リセット・ミュート・更新 ================== */
+/* リセット・ミュート・更新 */
 function resetAll(){
   if (intervalId){ clearInterval(intervalId); intervalId=null; }
   drum.pause(); fanfare.pause();
@@ -389,12 +334,9 @@ function resetAll(){
   startBtn.disabled=false; stopBtn.disabled=false; stopBtn.style.display='none';
   revealOverlay.style.display='none'; luckyOverlay.style.display='none';
   confettiCanvas.style.display='none'; confettiRunning=false; assigned.clear(); populateNameSelect();
-  currentPlayer=null; currentNameSel.disabled=false; setNamesBtn.disabled=false; namesInput.disabled=false;
-  updateStatus();
+  currentPlayer=null; currentNameSel.disabled=false; updateStatus();
 }
 function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 ミュート'; muteBtn.setAttribute('aria-pressed', String(muted)); if (muted){ drum.pause(); fanfare.pause(); } }
-
-/* ================== SW更新 ================== */
 async function checkUpdate(){
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.getRegistration(); if (!reg) return;
@@ -403,24 +345,16 @@ async function checkUpdate(){
   else if (reg.installing) reg.installing.addEventListener('statechange', ()=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); });
 }
 navigator.serviceWorker.addEventListener('controllerchange', ()=> location.reload());
-
-/* ================== イベント ================== */
 startBtn.addEventListener('click', startDraw);
 stopBtn.addEventListener('click', stopDraw);
 resetBtn.addEventListener('click', resetAll);
 muteBtn.addEventListener('click', toggleMute);
 updateBtn.addEventListener('click', checkUpdate);
 
-/* ================== PWA登録 ================== */
+/* PWA：SW登録 */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js', { scope: './' }).then(()=> console.log('SW registered'));
 }
-
-/* ================== 起動時：名簿復元 ================== */
-window.addEventListener('DOMContentLoaded', ()=>{
-  const saved = localStorage.getItem('seatapp:names');
-  if (saved && saved.trim()){ namesInput.value = saved; setNamesFromText(); }
-});
 </script>
 </body>
 </html>
