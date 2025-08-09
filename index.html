@@ -6,16 +6,14 @@
 <title>席決めくじ引き</title>
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json?v=10">
+<link rel="manifest" href="manifest.json?v=11">
 <meta name="theme-color" content="#3498db">
 <link rel="icon" href="icons/icon-192.png">
 
 <style>
-  :root { --primary:#3498db; --accent:#e74c3c; --bg:#f0f0f0; }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    text-align: center; padding: 20px; background: var(--bg);
-  }
+  :root { --primary:#3498db; --accent:#e74c3c; --bg:#f0f0f0; --gold:#f59e0b; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         text-align: center; padding: 20px; background: var(--bg); }
   h1 { color: #333; margin-bottom: 10px; }
   input, button { padding: 10px; font-size: 18px; margin: 10px; }
   .btn { background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
@@ -26,7 +24,7 @@
   #status { margin-top: 6px; font-size: 16px; color: #2c3e50; min-height: 1.2em; }
   #results { margin-top: 18px; font-size: 18px; }
 
-  /* === 当選表示オーバーレイ === */
+  /* === 当選表示オーバーレイ（通常） === */
   #revealOverlay {
     position: fixed; inset: 0; display: none; place-items: center;
     background: rgba(0,0,0,.35); backdrop-filter: blur(2px);
@@ -49,25 +47,48 @@
   .reveal-label { font-size: 18px; color:#34495e; }
   .reveal-sub { font-size: 14px; color:#6b7280; }
 
-  @keyframes popIn {
-    from { transform: scale(.7); opacity: 0; }
-    to   { transform: scale(1);  opacity: 1; }
+  /* === ラッキー（好きな席）オーバーレイ === */
+  #luckyOverlay {
+    position: fixed; inset: 0; display: none; place-items: center;
+    background: rgba(0,0,0,.45); backdrop-filter: blur(2px);
+    z-index: 10000; pointer-events: auto;
   }
-  @keyframes bounce {
-    0%{ transform: scale(.6); }
-    60%{ transform: scale(1.15); }
-    100%{ transform: scale(1); }
+  .lucky-card {
+    background: #fff; padding: 20px; border-radius: 16px;
+    box-shadow: 0 10px 50px rgba(0,0,0,.3);
+    border: 4px solid var(--gold);
+    width: min(720px, 92vw);
+    animation: popIn .45s ease-out, goldPulse 1.4s ease-in-out 0s 2;
   }
-  @keyframes glowPulse {
-    0%{ box-shadow: 0 0 0 rgba(52,152,219,0); }
-    50%{ box-shadow: 0 0 40px rgba(52,152,219,.4); }
-    100%{ box-shadow: 0 0 0 rgba(52,152,219,0); }
+  .lucky-title {
+    font-size: clamp(22px, 5vw, 28px); font-weight: 900; color: #92400e;
+    margin-bottom: 10px; display:flex; align-items:center; justify-content:center; gap:8px;
   }
+  .lucky-title .sparkle { font-size: 1.2em; }
+  .seat-grid {
+    display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    margin-top: 12px;
+  }
+  .seat-btn {
+    padding: 10px 0; border-radius: 10px; border: 2px solid #e5e7eb; background: #fff; cursor: pointer;
+    font-weight: 700;
+  }
+  .seat-btn:hover { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(245,158,11,.15) inset; }
+  .seat-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  @keyframes popIn { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes bounce { 0%{ transform: scale(.6); } 60%{ transform: scale(1.15);} 100%{ transform: scale(1);} }
+  @keyframes glowPulse { 0%{ box-shadow: 0 0 0 rgba(52,152,219,0);} 50%{ box-shadow: 0 0 40px rgba(52,152,219,.4);} 100%{ box-shadow:0 0 0 rgba(52,152,219,0);} }
+  @keyframes goldPulse { 0%{ box-shadow: 0 0 0 rgba(245,158,11,0);} 50%{ box-shadow: 0 0 50px rgba(245,158,11,.45);} 100%{ box-shadow:0 0 0 rgba(245,158,11,0);} }
 
   /* 紙吹雪キャンバス */
   #confettiCanvas {
     position: fixed; inset:0; z-index: 9998; pointer-events:none; display:none;
   }
+
+  /* オプション行（確率設定） */
+  #options { margin-top: 6px; font-size: 14px; color:#374151; }
+  #options input { width: 6em; text-align: right; }
 </style>
 </head>
 <body>
@@ -83,21 +104,37 @@
   <button class="btn" id="updateBtn">🔄 更新</button>
 </div>
 
+<div id="options">
+  ラッキー抽選の確率：
+  <input type="number" id="luckyProb" step="0.001" min="0" max="1" placeholder="未設定なら 1/初期人数" />
+  （0〜1、例：0.1で10%）
+</div>
+
 <div id="numberDisplay">---</div>
 <div id="status"></div>
 <div id="results"></div>
 
 <!-- 音（必要に応じて .wav → .mp3 に差し替え可） -->
-<audio id="drum" src="sounds/drumroll.mp3?v=10" preload="auto" loop></audio>
-<audio id="fanfare" src="sounds/fanfare.mp3?v=10" preload="auto"></audio>
+<audio id="drum" src="sounds/drumroll.mp3?v=11" preload="auto" loop></audio>
+<audio id="fanfare" src="sounds/fanfare.mp3?v=11" preload="auto"></audio>
 
-<!-- 紙吹雪＆当選リビール -->
+<!-- 紙吹雪＆当選リビール（通常） -->
 <canvas id="confettiCanvas"></canvas>
 <div id="revealOverlay" aria-hidden="true">
   <div class="reveal-card" role="dialog" aria-modal="true" aria-live="assertive">
     <div class="reveal-label">当選席番号</div>
     <div id="revealNumber" class="reveal-number">--</div>
     <div class="reveal-sub">タップで閉じる</div>
+  </div>
+</div>
+
+<!-- ラッキー（好きな席を選べる） -->
+<div id="luckyOverlay" aria-hidden="true">
+  <div class="lucky-card" role="dialog" aria-modal="true" aria-live="assertive">
+    <div class="lucky-title"><span class="sparkle">✨</span>ラッキー！好きな席を選ぶことができます！<span class="sparkle">✨</span></div>
+    <div>残っている席から1つ選んでください。</div>
+    <div id="seatGrid" class="seat-grid" style="margin-top:10px"></div>
+    <div style="margin-top:10px; font-size:12px; color:#6b7280;">※タップすると確定します</div>
   </div>
 </div>
 
@@ -108,6 +145,7 @@ let currentNumber = null;
 let finished = false;
 let muted = false;
 let totalCount = 0;
+let initialCount = 0;
 
 const startBtn = document.getElementById('startBtn');
 const stopBtn  = document.getElementById('stopBtn');
@@ -119,11 +157,15 @@ const resultsDiv = document.getElementById('results');
 const statusDiv = document.getElementById('status');
 const drum = document.getElementById('drum');
 const fanfare = document.getElementById('fanfare');
+const luckyProbInput = document.getElementById('luckyProb');
 
 const confettiCanvas = document.getElementById('confettiCanvas');
 const ctx = confettiCanvas.getContext('2d');
 const revealOverlay = document.getElementById('revealOverlay');
 const revealNumberEl = document.getElementById('revealNumber');
+
+const luckyOverlay = document.getElementById('luckyOverlay');
+const seatGrid = document.getElementById('seatGrid');
 
 function resizeCanvas(){
   confettiCanvas.width = window.innerWidth;
@@ -134,10 +176,11 @@ window.addEventListener('resize', resizeCanvas); resizeCanvas();
 /* ====== 紙吹雪 ====== */
 let confetti = [];
 let confettiRunning = false;
-function launchConfetti(duration=1600, count=220){
+function launchConfetti(duration=1600, count=220, gold=false){
   confetti = [];
   const w = confettiCanvas.width, h = confettiCanvas.height;
   for(let i=0; i<count; i++){
+    const hue = gold ? (45 + Math.random()*30) : Math.floor(Math.random()*360);
     confetti.push({
       x: Math.random()*w,
       y: -20 - Math.random()*h*0.4,
@@ -146,7 +189,7 @@ function launchConfetti(duration=1600, count=220){
       vy: 2 + Math.random()*3,
       rot: Math.random()*Math.PI*2,
       vr: -0.3 + Math.random()*0.6,
-      color: `hsl(${Math.floor(Math.random()*360)},85%,55%)`
+      color: gold ? `hsl(${hue},90%,55%)` : `hsl(${hue},85%,55%)`
     });
   }
   const start = performance.now();
@@ -158,41 +201,30 @@ function launchConfetti(duration=1600, count=220){
     ctx.clearRect(0,0,w,h);
     confetti.forEach(p=>{
       p.x += p.vx; p.y += p.vy;
-      p.rot += p.vr;
-      p.vy += 0.02;
+      p.rot += p.vr; p.vy += 0.02;
       drawConfetti(p);
     });
-    if (t < duration){
-      requestAnimationFrame(tick);
-    } else {
-      confettiRunning = false;
-      confettiCanvas.style.display = 'none';
-    }
+    if (t < duration){ requestAnimationFrame(tick); }
+    else { confettiRunning = false; confettiCanvas.style.display = 'none'; }
   }
   requestAnimationFrame(tick);
 }
 function drawConfetti(p){
-  ctx.save();
-  ctx.translate(p.x, p.y);
-  ctx.rotate(p.rot);
-  ctx.fillStyle = p.color;
-  ctx.fillRect(-p.r, -p.r*0.6, p.r*2, p.r*1.2);
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+  ctx.fillStyle = p.color; ctx.fillRect(-p.r, -p.r*0.6, p.r*2, p.r*1.2);
   ctx.restore();
 }
 
 /* ====== 状態表示 ====== */
 function updateStatus() {
-  if (finished) {
-    statusDiv.textContent = 'ルーレットが終了しました';
-  } else if (seats.length > 0) {
-    statusDiv.textContent = `残り ${seats.length} / 合計 ${totalCount}`;
-  } else {
-    statusDiv.textContent = '';
-  }
+  if (finished) statusDiv.textContent = 'ルーレットが終了しました';
+  else if (seats.length > 0) statusDiv.textContent = `残り ${seats.length} / 合計 ${totalCount}`;
+  else statusDiv.textContent = '';
 }
 
 function initSeats(count) {
   totalCount = count;
+  initialCount = count;
   seats = Array.from({length: count}, (_, i) => i + 1);
   finished = false;
   resultsDiv.innerHTML = '';
@@ -200,13 +232,19 @@ function initSeats(count) {
   updateStatus();
 }
 
+/* ====== ラッキー判定 ======
+   入力があれば luckyProbInput（0〜1）を使い、
+   未設定ならデフォルトで 1 / initialCount を使用 */
+function isLuckyHit() {
+  const input = parseFloat(luckyProbInput.value);
+  const p = (!isNaN(input) && input >= 0 && input <= 1) ? input : (initialCount > 0 ? (1 / initialCount) : 0.1);
+  return Math.random() < p;
+}
+
 function startDraw() {
   const countInput = parseInt(document.getElementById('count').value);
   if (!seats.length && !finished) {
-    if (!countInput || countInput <= 0) {
-      alert('人数を正しく入力してください');
-      return;
-    }
+    if (!countInput || countInput <= 0) { alert('人数を正しく入力してください'); return; }
     initSeats(countInput);
   }
   if (finished) return;
@@ -227,20 +265,66 @@ function stopDraw() {
   if (!intervalId) return;
   clearInterval(intervalId);
   intervalId = null;
-
   drum.pause();
 
-  // 当選確定
-  seats = seats.filter(num => num !== currentNumber);
+  // ── ラッキー抽選（好きな席を選べる） ──
+  if (seats.length > 1 && isLuckyHit()) {
+    showLuckyOverlay(); // ← ここで特別演出＆選択へ
+    return;
+  }
 
-  // リビール表示 & 紙吹雪 & ファンファーレ（自動クローズはしない）
+  // ── 通常の確定表示 ──
+  seats = seats.filter(num => num !== currentNumber);
   revealNumberEl.textContent = currentNumber;
   revealOverlay.style.display = 'grid';
   if (!muted) { try { fanfare.currentTime = 0; fanfare.play(); } catch(e) {} }
-  if (!confettiRunning) launchConfetti(1600, 220);
+  if (!confettiRunning) launchConfetti(1600, 220, false);
 }
 
-// オーバーレイをタップで閉じて、結果欄に反映
+/* ====== ラッキー処理 ====== */
+function showLuckyOverlay(){
+  // 座席グリッドを構築
+  seatGrid.innerHTML = '';
+  const sorted = [...seats].sort((a,b)=>a-b);
+  sorted.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'seat-btn';
+    btn.textContent = n;
+    btn.addEventListener('click', () => chooseLuckySeat(n), { once:true });
+    seatGrid.appendChild(btn);
+  });
+
+  // 金紙吹雪＆（同じファンファーレでOK）
+  luckyOverlay.style.display = 'grid';
+  if (!muted) { try { fanfare.currentTime = 0; fanfare.play(); } catch(e) {} }
+  if (!confettiRunning) launchConfetti(1800, 260, true);
+}
+
+function chooseLuckySeat(n){
+  // 選んだ番号を確定
+  currentNumber = n;
+  seats = seats.filter(x => x !== n);
+
+  // オーバーレイを閉じて結果へ
+  luckyOverlay.style.display = 'none';
+  resultsDiv.innerHTML += `<div>🎉 <strong>ラッキー！</strong> 好きな席 <strong>${currentNumber}</strong> を選びました！</div>`;
+  numberDisplay.textContent = '---';
+
+  stopBtn.style.display = 'none';
+  startBtn.disabled = false;
+  resetBtn.disabled = false;
+
+  if (seats.length === 0) {
+    finished = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = true;
+    updateStatus();
+    return;
+  }
+  updateStatus();
+}
+
+/* ====== 通常の当選オーバーレイをタップで閉じる ====== */
 revealOverlay.addEventListener('click', () => {
   revealOverlay.style.display = 'none';
   resultsDiv.innerHTML += `<div>→ 席番号 <strong>${currentNumber}</strong> 決定！</div>`;
@@ -266,7 +350,7 @@ function resetAll() {
   seats = []; currentNumber = null; finished = false;
   numberDisplay.textContent = '---'; resultsDiv.innerHTML = '';
   startBtn.disabled = false; stopBtn.disabled = false; stopBtn.style.display = 'none';
-  revealOverlay.style.display = 'none';
+  revealOverlay.style.display = 'none'; luckyOverlay.style.display = 'none';
   confettiCanvas.style.display = 'none'; confettiRunning = false;
   updateStatus();
 }
@@ -284,13 +368,11 @@ async function checkUpdate() {
   const reg = await navigator.serviceWorker.getRegistration();
   if (!reg) return;
   await reg.update();
-  if (reg.waiting) {
-    reg.waiting.postMessage({type:'SKIP_WAITING'});
-  } else if (reg.installing) {
+  if (reg.waiting)      reg.waiting.postMessage({type:'SKIP_WAITING'});
+  else if (reg.installing)
     reg.installing.addEventListener('statechange', () => {
       if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
     });
-  }
 }
 navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
 
