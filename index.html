@@ -92,6 +92,7 @@
 <!-- 効果音 -->
 <audio id="drum" src="sounds/drumroll.mp3?v=16" preload="auto" loop></audio>
 <audio id="fanfare" src="sounds/fanfare.mp3?v=16" preload="auto"></audio>
+<audio id="sun" src="sounds/sun.mp3?v=16" preload="auto"></audio>
 
 <!-- 紙吹雪＆当選リビール（通常） -->
 <canvas id="confettiCanvas"></canvas>
@@ -152,6 +153,7 @@ const resultsDiv = document.getElementById('results');
 const statusDiv = document.getElementById('status');
 const drum = document.getElementById('drum');
 const fanfare = document.getElementById('fanfare');
+const sun = document.getElementById('sun');
 const luckyProbInput = document.getElementById('luckyProb');
 
 const confettiCanvas = document.getElementById('confettiCanvas');
@@ -292,7 +294,7 @@ function showLuckyOverlay(){
     seatGrid.appendChild(btn);
   });
   luckyOverlay.style.display='grid';
-  if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
+  if (!muted) { try { sun.currentTime=0; sun.play(); } catch(e){} }
   if (!confettiRunning) launchConfetti(1800, 260, true);
 
   announceLuckyStart(currentPlayer); // 読み上げ
@@ -329,14 +331,14 @@ function finishOne(){
 /* リセット・ミュート・更新 */
 function resetAll(){
   if (intervalId){ clearInterval(intervalId); intervalId=null; }
-  drum.pause(); fanfare.pause();
+  drum.pause(); fanfare.pause();sun.pause();
   seats=[]; currentNumber=null; finished=false; resultsDiv.innerHTML=''; numberDisplay.textContent='---';
   startBtn.disabled=false; stopBtn.disabled=false; stopBtn.style.display='none';
   revealOverlay.style.display='none'; luckyOverlay.style.display='none';
   confettiCanvas.style.display='none'; confettiRunning=false; assigned.clear(); populateNameSelect();
   currentPlayer=null; currentNameSel.disabled=false; updateStatus();
 }
-function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 ミュート'; muteBtn.setAttribute('aria-pressed', String(muted)); if (muted){ drum.pause(); fanfare.pause(); } }
+function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 ミュート'; muteBtn.setAttribute('aria-pressed', String(muted)); if (muted){ drum.pause(); fanfare.pause(); sun.pause(); } }
 async function checkUpdate(){
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.getRegistration(); if (!reg) return;

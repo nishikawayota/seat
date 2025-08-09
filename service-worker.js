@@ -6,7 +6,8 @@ const PRECACHE = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './sounds/drumroll.mp3',
-  './sounds/fanfare.mp3'
+  './sounds/fanfare.mp3',
+  './sounds/sun.mp3',
 ];
 
 self.addEventListener('install', event => {
