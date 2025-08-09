@@ -2,36 +2,35 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
 <title>席決めくじ引き</title>
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json?v=18" />
-<meta name="theme-color" content="#fff" />
+<link rel="manifest" href="manifest.json?v=19" />
+<meta name="theme-color" content="#ffffff" />
 <link rel="icon" href="icons/icon-192.png" />
 
 <style>
   /* ===== Pastel Pop Tokens ===== */
   :root{
     --bg: #fff;
-    --ink: #334155;         /* slate-700 */
-    --muted:#64748b;        /* slate-500 */
-    --surface:#ffffffcc;    /* glassy */
-    --border:#e2e8f0;       /* slate-200 */
+    --ink: #334155;
+    --muted:#64748b;
+    --surface:#ffffffcc;
+    --border:#e2e8f0;
     --shadow: 0 10px 30px rgba(2, 6, 23, .08);
 
-    /* pastel set (inspired by site’s colorful circles) */
-    --p-rose:   #fecdd3; /* rose-200 */
-    --p-pink:   #fbcfe8; /* pink-200 */
-    --p-violet: #ddd6fe; /* violet-200 */
-    --p-sky:    #bae6fd; /* sky-200 */
-    --p-mint:   #bbf7d0; /* green-200 */
-    --p-amber:  #fde68a; /* amber-200 */
+    --p-rose:   #fecdd3;
+    --p-pink:   #fbcfe8;
+    --p-violet: #ddd6fe;
+    --p-sky:    #bae6fd;
+    --p-mint:   #bbf7d0;
+    --p-amber:  #fde68a;
 
-    --btn-grad: linear-gradient(135deg, #a5b4fc, #93c5fd); /* indigo→sky */
-    --btn-grad-2: linear-gradient(135deg, #fbcfe8, #fde68a); /* pink→amber */
-    --accent: #fb7185;  /* rose-400 */
-    --accent-2: #22c55e;/* green-500 */
+    --btn-grad:   linear-gradient(135deg, #a5b4fc, #93c5fd);
+    --btn-grad-2: linear-gradient(135deg, #fbcfe8, #fde68a);
+    --accent:   #fb7185;
   }
   *{ box-sizing: border-box; }
   html,body{ height:100%; }
@@ -44,16 +43,15 @@
       radial-gradient(400px 400px at 10% 100%, var(--p-mint), transparent 55%),
       radial-gradient(360px 360px at 95% 100%, var(--p-violet), transparent 55%),
       #fff;
-    padding:24px 14px 64px;
+    padding:12px 10px 64px;
   }
 
-  .app{ width:min(980px,96vw); margin:0 auto; display:grid; gap:14px; }
+  .app{ width:min(980px,96vw); margin:0 auto; display:grid; gap:12px; }
 
   /* ===== Hero ===== */
   .hero{
     position:relative; border:1px solid var(--border); background:var(--surface);
-    border-radius:20px; box-shadow:var(--shadow); padding:14px 16px;
-    overflow:hidden;
+    border-radius:18px; box-shadow:var(--shadow); padding:12px 14px; overflow:hidden;
   }
   .dots{
     position:absolute; inset:-40px; pointer-events:none; opacity:.7;
@@ -63,20 +61,20 @@
       radial-gradient(110px 110px at 15% 90%, var(--p-mint), transparent 70%),
       radial-gradient(100px 100px at 92% 90%, var(--p-violet), transparent 70%);
   }
-  .title{ position:relative; display:flex; align-items:center; gap:12px; }
+  .title{ position:relative; display:flex; align-items:center; gap:10px; }
   .logo{
-    width:48px; height:48px; border-radius:14px; display:grid; place-items:center;
+    width:44px; height:44px; border-radius:12px; display:grid; place-items:center;
     background: var(--btn-grad);
     box-shadow: 0 8px 24px rgba(99, 102, 241, .25);
-    font-size:22px;
+    font-size:20px;
   }
-  h1{ margin:0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing:.02em; }
-  .subtitle{ color:var(--muted); font-size:13px; }
+  h1{ margin:0; font-size: clamp(18px, 2.6vw, 26px); letter-spacing:.02em; }
+  .subtitle{ color:var(--muted); font-size:12px; }
 
-  /* ===== Cards / Controls ===== */
+  /* ===== Cards ===== */
   .card{
     border:1px solid var(--border); background:var(--surface);
-    border-radius:18px; padding:14px; box-shadow:var(--shadow);
+    border-radius:16px; padding:12px; box-shadow:var(--shadow);
   }
   .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   label{ font-size:14px; color:var(--muted); }
@@ -85,6 +83,7 @@
     background:#fff; border:1px solid var(--border); color:var(--ink);
     border-radius:12px; padding:10px 12px; font-size:16px; outline:none;
     transition: box-shadow .15s, border-color .15s;
+    min-width: 120px;
   }
   select:focus, input[type="number"]:focus{
     border-color:#c7d2fe; box-shadow:0 0 0 3px rgba(199,210,254,.6);
@@ -92,34 +91,48 @@
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
 
-  .btn{
-    border:0; border-radius:12px; padding:10px 14px; cursor:pointer;
-    font-weight:800; letter-spacing:.02em; color:#0b1220;
-    box-shadow: 0 8px 20px rgba(14, 165, 233, .20);
+  /* ===== BIG CTA bar (Start/Stop only) ===== */
+  .cta-bar{
+    position: sticky; top: env(safe-area-inset-top, 0);
+    z-index: 5;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cta{
+    border:0; border-radius:16px; padding:16px 14px; cursor:pointer;
+    font-weight:900; letter-spacing:.02em; color:#0b1220;
+    box-shadow: 0 10px 24px rgba(14, 165, 233, .20);
     background: var(--btn-grad); transition: transform .07s ease, filter .15s ease;
+    font-size: clamp(18px, 4.8vw, 22px);
   }
-  .btn:hover{ filter:brightness(1.05); }
-  .btn:active{ transform: translateY(1px); }
-  .btn.secondary{ background: var(--btn-grad-2); }
-  .btn.ghost{
-    background:#fff; color:var(--ink); border:1px solid var(--border);
-    box-shadow:none;
-  }
-  .btn.warn{
+  .cta.warn{
     background: linear-gradient(135deg, #fda4af, #fb7185);
-    color:#fff; box-shadow:0 8px 22px rgba(251, 113, 133, .25);
+    color:#fff; box-shadow:0 10px 24px rgba(251, 113, 133, .25);
   }
-  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
+  .cta:active{ transform: translateY(1px); }
+  .cta[disabled]{ opacity:.5; cursor:not-allowed; }
+
+  /* ===== Secondary controls ===== */
+  .btn{
+    border:0; border-radius:12px; padding:10px 12px; cursor:pointer;
+    font-weight:800; letter-spacing:.02em; color:#0b1220;
+    box-shadow: 0 6px 16px rgba(14, 165, 233, .16);
+    background: var(--btn-grad-2); transition: transform .07s ease, filter .15s ease;
+  }
+  .btn.ghost{ background:#fff; color:var(--ink); border:1px solid var(--border); box-shadow:none; }
+  .btn:active{ transform: translateY(1px); }
+  .btn[disabled]{ opacity:.5; cursor:not-allowed; }
 
   /* ===== Display ===== */
   .display{ display:grid; gap:8px; text-align:center; }
   #numberDisplay{
-    font-size: clamp(46px, 10vw, 100px); font-weight:900; letter-spacing:.03em;
+    font-size: clamp(44px, 12vw, 96px); font-weight:900; letter-spacing:.03em;
     color: var(--accent);
-    text-shadow: 0 12px 34px rgba(251, 113, 133, .35);
+    text-shadow: 0 10px 28px rgba(251, 113, 133, .28);
     min-height:1.2em;
   }
-  #status{ color:var(--muted); min-height:1.2em; }
+  #status{ color:var(--muted); min-height:1.2em; font-size: 14px; }
 
   .chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
   .chip{
@@ -133,31 +146,31 @@
   .chip--mint{ background:var(--p-mint); }
   .chip--amber{ background:var(--p-amber); }
 
-  /* ===== Results ===== */
   #results{ display:grid; gap:8px; }
   .result-item{
     background:#fff; border:1px solid var(--border); border-radius:14px;
-    padding:10px 12px; box-shadow: var(--shadow);
+    padding:10px 12px; box-shadow: var(--shadow); font-size: 15px;
   }
 
-  /* ===== Overlays ===== */
+  /* ===== Overlays (視認性UP) ===== */
   #revealOverlay, #luckyOverlay{
     position:fixed; inset:0; display:none; place-items:center;
-    background: rgba(0,0,0,.28);
-    z-index:50;
+    background: rgba(0,0,0,.62);               /* ← 背景を濃く */
+    backdrop-filter: blur(3px);
+    z-index:60;
   }
   .reveal-card, .lucky-card{
-    background: linear-gradient(180deg, #fff, #fff9);
-    border:1px solid var(--border); color:#111827; border-radius:18px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.12);
+    background:#fff;                            /* ← 白の不透明に */
+    border: 2px solid #e5e7eb;                  /* くっきり境界 */
+    color:#111827; border-radius:18px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.35);    /* 影を強めに */
     padding:18px 22px; max-width:min(92vw,720px); text-align:center;
-    animation: pop .28s ease-out;
+    animation: pop .26s ease-out;
   }
   @keyframes pop{ from{ transform:scale(.9); opacity:0 } to{ transform:scale(1); opacity:1 } }
-
   .reveal-title{ font-size:clamp(16px, 4vw, 18px); color:#475569; font-weight:700; }
   .reveal-number{
-    font-size: clamp(68px, 16vw, 140px); line-height:1; font-weight:900;
+    font-size: clamp(74px, 18vw, 140px); line-height:1; font-weight:900;
     color:#ef4444; text-shadow:0 12px 30px rgba(239, 68, 68, .35);
   }
   .reveal-sub{ font-size:13px; color:#64748b; }
@@ -174,7 +187,19 @@
   .seat-btn:active{ transform: translateY(1px); }
 
   /* Confetti */
-  #confettiCanvas{ position:fixed; inset:0; z-index:40; pointer-events:none; display:none; }
+  #confettiCanvas{ position:fixed; inset:0; z-index:55; pointer-events:none; display:none; }
+
+  /* ===== iPhone SE / 小画面調整 ===== */
+  @media (max-width: 360px){
+    body{ padding:10px 8px 54px; }
+    .card{ padding:10px; border-radius:14px; }
+    .hero{ padding:10px 12px; border-radius:14px; }
+    .logo{ width:40px; height:40px; font-size:18px; }
+    .cta{ padding:14px 10px; border-radius:14px; }
+    select, input[type="number"]{ padding:9px 10px; min-width: 0; }
+    .row{ gap:8px; }
+    #results .result-item{ font-size:14px; }
+  }
 </style>
 </head>
 <body>
@@ -185,10 +210,18 @@
         <div class="logo">🎉</div>
         <div>
           <h1>席決めくじ引き</h1>
+          <div class="subtitle">カラフルでPlayful、だけど操作はシンプル</div>
         </div>
       </div>
     </section>
 
+    <!-- BIG CTA: Start / Stop だけを大きく -->
+    <section class="cta-bar">
+      <button class="cta" id="startBtn">スタート</button>
+      <button class="cta warn" id="stopBtn" style="display:none;">ストップ！</button>
+    </section>
+
+    <!-- セカンダリ操作 -->
     <section class="card">
       <div class="row">
         <label for="currentName">今回回す人</label>
@@ -197,9 +230,7 @@
         <label for="count">座席数</label>
         <input type="number" id="count" placeholder="未入力＝名簿人数" min="1" inputmode="numeric" />
 
-        <button class="btn" id="startBtn">スタート</button>
-        <button class="btn warn" id="stopBtn" style="display:none;">ストップ！</button>
-        <button class="btn secondary" id="resetBtn">リセット</button>
+        <button class="btn" id="resetBtn">リセット</button>
         <button class="btn ghost" id="muteBtn" aria-pressed="false" title="効果音ミュート">🔊 サウンド</button>
         <button class="btn ghost" id="updateBtn" title="PWA更新">🔄 更新</button>
       </div>
@@ -223,8 +254,8 @@
   </div>
 
   <!-- 効果音 -->
-  <audio id="drum" src="sounds/drumroll.mp3?v=18" preload="auto" loop></audio>
-  <audio id="fanfare" src="sounds/fanfare.mp3?v=18" preload="auto"></audio>
+  <audio id="drum" src="sounds/drumroll.mp3?v=19" preload="auto" loop></audio>
+  <audio id="fanfare" src="sounds/fanfare.mp3?v=19" preload="auto"></audio>
 
   <!-- 紙吹雪＆当選オーバーレイ -->
   <canvas id="confettiCanvas"></canvas>
@@ -363,7 +394,7 @@ function isLuckyHit(){
   return Math.random() < p;
 }
 
-/* ===== スタート／ストップ ===== */
+/* ===== スタート／ストップ（大ボタン） ===== */
 function startDraw(){
   const sel = currentNameSel.value;
   if (!sel) { alert('今回回す人を選んでください'); return; }
@@ -378,7 +409,7 @@ function startDraw(){
   }
   if (finished) return;
 
-  stopBtn.style.display='inline-block'; startBtn.disabled=true; resetBtn.disabled=true; currentNameSel.disabled=true;
+  stopBtn.style.display='block'; startBtn.disabled=true; startBtn.style.opacity=.6; resetBtn.disabled=true; currentNameSel.disabled=true;
 
   if (!muted) { try { drum.currentTime=0; drum.play(); } catch(e){} }
 
@@ -439,7 +470,7 @@ revealOverlay.addEventListener('click', ()=>{
 
 /* ===== 結果後の共通処理 ===== */
 function finishOne(){
-  stopBtn.style.display='none'; startBtn.disabled=false; resetBtn.disabled=false;
+  stopBtn.style.display='none'; startBtn.disabled=false; startBtn.style.opacity=1; resetBtn.disabled=false;
 
   assigned.add(currentPlayer); currentPlayer=null; populateNameSelect();
   currentNameSel.disabled=false;
@@ -453,7 +484,7 @@ function resetAll(){
   if (intervalId){ clearInterval(intervalId); intervalId=null; }
   drum.pause(); fanfare.pause();
   seats=[]; currentNumber=null; finished=false; resultsDiv.innerHTML=''; numberDisplay.textContent='---';
-  startBtn.disabled=false; stopBtn.disabled=false; stopBtn.style.display='none';
+  startBtn.disabled=false; startBtn.style.opacity=1; stopBtn.disabled=false; stopBtn.style.display='none';
   revealOverlay.style.display='none'; luckyOverlay.style.display='none';
   confettiCanvas.style.display='none'; confettiRunning=false; assigned.clear(); populateNameSelect();
   currentPlayer=null; currentNameSel.disabled=false; updateStatus();
