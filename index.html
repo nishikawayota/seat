@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>席決めくじ引き</title>
 
-<!-- PWA用 -->
+<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#3498db">
 <link rel="icon" href="icons/icon-192.png">
@@ -14,65 +14,203 @@
   body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f0f0; }
   h1 { color: #333; }
   input, button { padding: 10px; font-size: 18px; margin: 10px; }
-  #numberDisplay { font-size: 50px; font-weight: bold; margin: 40px 0; color: #e74c3c; }
+  #numberDisplay { font-size: 56px; font-weight: bold; margin: 40px 0; color: #e74c3c; min-height: 1.2em; }
   #results { margin-top: 20px; font-size: 18px; }
-  .btn { background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+  .btn { background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #status { margin-top: 16px; font-size: 16px; color: #2c3e50; min-height: 1.2em; }
+  .row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 </style>
 </head>
 <body>
 
 <h1>席決めくじ引き</h1>
-<input type="number" id="count" placeholder="人数を入力" min="1">
-<button class="btn" onclick="startDraw()">スタート</button>
+
+<div class="row">
+  <input type="number" id="count" placeholder="人数を入力" min="1" inputmode="numeric">
+  <button class="btn" id="startBtn">スタート</button>
+  <button class="btn" id="stopBtn" style="display:none;">ストップ！</button>
+  <button class="btn" id="resetBtn">リセット</button>
+  <button class="btn" id="muteBtn" aria-pressed="false">🔊 ミュート</button>
+</div>
 
 <div id="numberDisplay">---</div>
-<button class="btn" id="stopButton" style="display:none;" onclick="stopDraw()">ストップ！</button>
-
+<div id="status"></div>
 <div id="results"></div>
+
+<!-- ドラムロール音（ユーザー操作で再生開始。iOS対策でcontrolsは非表示） -->
+<!-- 音声ファイル追加 -->
+<audio id="drum" src="sounds/drumroll.mp3" preload="auto" loop></audio>
+<audio id="fanfare" src="sounds/fanfare.mp3" preload="auto"></audio>
 
 <script>
 let seats = [];
-let intervalId;
-let currentNumber;
+let intervalId = null;
+let currentNumber = null;
+let finished = false;
+let muted = false;
+
+const startBtn = document.getElementById('startBtn');
+const stopBtn  = document.getElementById('stopBtn');
+const resetBtn = document.getElementById('resetBtn');
+const muteBtn  = document.getElementById('muteBtn');
+const numberDisplay = document.getElementById('numberDisplay');
+const resultsDiv = document.getElementById('results');
+const statusDiv = document.getElementById('status');
+const drum = document.getElementById('drum');
+const fanfare = document.getElementById('fanfare');
+
+function stopDraw() {
+  if (!intervalId) return;
+
+  clearInterval(intervalId);
+  intervalId = null;
+
+  // ドラムロール停止
+  drum.pause();
+
+  // 当選番号をリストから除外
+  seats = seats.filter(num => num !== currentNumber);
+
+  // 結果表示
+  resultsDiv.innerHTML += `<div>→ 席番号 ${currentNumber} 決定！</div>`;
+
+  // ファンファーレ再生
+  if (!muted) {
+    fanfare.currentTime = 0;
+    fanfare.play().catch(()=>{});
+  }
+
+  stopBtn.style.display = 'none';
+  startBtn.disabled = false;
+  resetBtn.disabled = false;
+  numberDisplay.textContent = '---';
+
+  // すべて出たら終了表示
+  if (seats.length === 0) {
+    finished = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = true;
+    updateStatus();
+    return;
+  }
+  updateStatus();
+}
+
+
+function updateStatus() {
+  if (finished) {
+    statusDiv.textContent = 'ルーレットが終了しました';
+  } else if (seats.length > 0) {
+    statusDiv.textContent = `残り ${seats.length} / 合計 ${totalCount}`;
+  } else {
+    statusDiv.textContent = '';
+  }
+}
+
+let totalCount = 0;
+
+function initSeats(count) {
+  totalCount = count;
+  seats = Array.from({length: count}, (_, i) => i + 1);
+  finished = false;
+  resultsDiv.innerHTML = '';
+  numberDisplay.textContent = '---';
+  updateStatus();
+}
 
 function startDraw() {
-  const count = parseInt(document.getElementById('count').value);
-  if (!count || count <= 0) {
-    alert('人数を正しく入力してください');
-    return;
-  }
-  
-  if (seats.length === 0) {
-    seats = Array.from({length: count}, (_, i) => i + 1);
-  }
-
-  if (seats.length === 0) {
-    alert('全員分の席が決まりました！');
-    return;
+  const countInput = parseInt(document.getElementById('count').value);
+  if (!seats.length && !finished) {
+    if (!countInput || countInput <= 0) {
+      alert('人数を正しく入力してください');
+      return;
+    }
+    initSeats(countInput);
   }
 
-  document.getElementById('stopButton').style.display = 'inline-block';
-  
+  if (finished) return;
+
+  stopBtn.style.display = 'inline-block';
+  startBtn.disabled = true;
+  resetBtn.disabled = true;
+
+  // ドラムロール再生（ユーザー操作イベント内なので再生可能）
+  if (!muted) {
+    drum.currentTime = 0;
+    drum.play().catch(()=>{ /* 再生失敗は握りつぶす */ });
+  }
+
   intervalId = setInterval(() => {
     currentNumber = seats[Math.floor(Math.random() * seats.length)];
-    document.getElementById('numberDisplay').textContent = currentNumber;
+    numberDisplay.textContent = currentNumber;
   }, 50);
 }
 
 function stopDraw() {
+  if (!intervalId) return;
+
   clearInterval(intervalId);
+  intervalId = null;
+
+  // ドラムロール停止
+  drum.pause();
+
+  // 当選番号をリストから除外
   seats = seats.filter(num => num !== currentNumber);
-  document.getElementById('results').innerHTML += `<div>→ 席番号 ${currentNumber} 決定！</div>`;
-  document.getElementById('stopButton').style.display = 'none';
-  document.getElementById('numberDisplay').textContent = '---';
+
+  // 結果表示
+  resultsDiv.innerHTML += `<div>→ 席番号 ${currentNumber} 決定！</div>`;
+
+  stopBtn.style.display = 'none';
+  startBtn.disabled = false;
+  resetBtn.disabled = false;
+  numberDisplay.textContent = '---';
+
+  // すべて出たら終了表示＆操作制御
+  if (seats.length === 0) {
+    finished = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = true;
+    updateStatus();
+    return;
+  }
+  updateStatus();
 }
 
-// PWA用Service Worker登録
+function resetAll() {
+  clearInterval(intervalId);
+  intervalId = null;
+  drum.pause();
+  seats = [];
+  currentNumber = null;
+  finished = false;
+  numberDisplay.textContent = '---';
+  resultsDiv.innerHTML = '';
+  startBtn.disabled = false;
+  stopBtn.disabled = false;
+  stopBtn.style.display = 'none';
+  updateStatus();
+}
+
+function toggleMute() {
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 ミュート';
+  muteBtn.setAttribute('aria-pressed', String(muted));
+  if (muted) drum.pause();
+}
+
+// イベント紐付け
+startBtn.addEventListener('click', startDraw);
+stopBtn.addEventListener('click', stopDraw);
+resetBtn.addEventListener('click', resetAll);
+muteBtn.addEventListener('click', toggleMute);
+
+// PWA Service Worker登録
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js')
     .then(() => console.log('Service Worker registered'));
 }
 </script>
-
 </body>
 </html>
