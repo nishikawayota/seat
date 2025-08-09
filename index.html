@@ -2,123 +2,303 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>席決めくじ引き</title>
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json?v=16" />
-<meta name="theme-color" content="#3498db" />
+<link rel="manifest" href="manifest.json?v=18" />
+<meta name="theme-color" content="#fff" />
 <link rel="icon" href="icons/icon-192.png" />
 
 <style>
-  :root { --primary:#3498db; --accent:#e74c3c; --bg:#f0f0f0; --gold:#f59e0b; }
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 20px; background: var(--bg); }
-  h1 { color: #333; margin-bottom: 10px; }
-  input, button, select { padding: 10px; font-size: 16px; margin: 6px; }
-  .btn { background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
-  .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  /* ===== Pastel Pop Tokens ===== */
+  :root{
+    --bg: #fff;
+    --ink: #334155;         /* slate-700 */
+    --muted:#64748b;        /* slate-500 */
+    --surface:#ffffffcc;    /* glassy */
+    --border:#e2e8f0;       /* slate-200 */
+    --shadow: 0 10px 30px rgba(2, 6, 23, .08);
 
-  #numberDisplay { font-size: 56px; font-weight: 800; margin: 16px 0 6px; color: var(--accent); min-height: 1.2em; }
-  #status { margin-top: 6px; font-size: 16px; color: #2c3e50; min-height: 1.2em; }
-  #results { margin-top: 18px; font-size: 18px; text-align:left; max-width: 720px; margin-inline:auto; }
+    /* pastel set (inspired by site’s colorful circles) */
+    --p-rose:   #fecdd3; /* rose-200 */
+    --p-pink:   #fbcfe8; /* pink-200 */
+    --p-violet: #ddd6fe; /* violet-200 */
+    --p-sky:    #bae6fd; /* sky-200 */
+    --p-mint:   #bbf7d0; /* green-200 */
+    --p-amber:  #fde68a; /* amber-200 */
 
-  /* === 当選表示オーバーレイ（通常） === */
-  #revealOverlay { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.35); backdrop-filter: blur(2px); z-index: 9999; }
-  .reveal-card { background: #fff; padding: 24px 28px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
-    display:flex; flex-direction:column; align-items:center; gap:8px; animation: popIn .45s ease-out, glowPulse 1.2s ease-in-out 0s 2; border: 4px solid var(--primary); max-width: 92vw; }
-  .reveal-title { font-size: clamp(18px, 4.8vw, 22px); color:#34495e; font-weight: 700; }
-  .reveal-number { font-size: clamp(64px, 16vw, 140px); line-height: 1; font-weight: 900; color: var(--accent);
-    text-shadow: 0 6px 18px rgba(231,76,60,.35); animation: bounce .9s ease-out; }
-  .reveal-sub { font-size: 14px; color:#6b7280; }
+    --btn-grad: linear-gradient(135deg, #a5b4fc, #93c5fd); /* indigo→sky */
+    --btn-grad-2: linear-gradient(135deg, #fbcfe8, #fde68a); /* pink→amber */
+    --accent: #fb7185;  /* rose-400 */
+    --accent-2: #22c55e;/* green-500 */
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; color:var(--ink);
+    font:16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background:
+      radial-gradient(600px 600px at 10% -10%, var(--p-rose), transparent 60%),
+      radial-gradient(500px 500px at 95% 0%, var(--p-sky), transparent 55%),
+      radial-gradient(400px 400px at 10% 100%, var(--p-mint), transparent 55%),
+      radial-gradient(360px 360px at 95% 100%, var(--p-violet), transparent 55%),
+      #fff;
+    padding:24px 14px 64px;
+  }
 
-  /* === ラッキー（好きな席）オーバーレイ === */
-  #luckyOverlay { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.45); backdrop-filter: blur(2px); z-index: 10000; }
-  .lucky-card { background: #fff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 50px rgba(0,0,0,.3); border: 4px solid var(--gold);
-    width: min(720px, 92vw); animation: popIn .45s ease-out, goldPulse 1.4s ease-in-out 0s 2; }
-  .lucky-title { font-size: clamp(20px, 5vw, 26px); font-weight: 900; color: #92400e; margin-bottom: 10px; display:flex; align-items:center; justify-content:center; gap:8px; }
-  .lucky-title .sparkle { font-size: 1.2em; }
-  .seat-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); margin-top: 12px; }
-  .seat-btn { padding: 10px 0; border-radius: 10px; border: 2px solid #e5e7eb; background: #fff; cursor: pointer; font-weight: 700; }
-  .seat-btn:hover { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(245,158,11,.15) inset; }
-  .seat-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .app{ width:min(980px,96vw); margin:0 auto; display:grid; gap:14px; }
 
-  @keyframes popIn { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  @keyframes bounce { 0%{ transform: scale(.6); } 60%{ transform: scale(1.15);} 100%{ transform: scale(1);} }
-  @keyframes glowPulse { 0%{ box-shadow: 0 0 0 rgba(52,152,219,0);} 50%{ box-shadow: 0 0 40px rgba(52,152,219,.4);} 100%{ box-shadow:0 0 0 rgba(52,152,219,0);} }
-  @keyframes goldPulse { 0%{ box-shadow: 0 0 0 rgba(245,158,11,0);} 50%{ box-shadow: 0 0 50px rgba(245,158,11,.45);} 100%{ box-shadow:0 0 0 rgba(245,158,11,0);} }
+  /* ===== Hero ===== */
+  .hero{
+    position:relative; border:1px solid var(--border); background:var(--surface);
+    border-radius:20px; box-shadow:var(--shadow); padding:14px 16px;
+    overflow:hidden;
+  }
+  .dots{
+    position:absolute; inset:-40px; pointer-events:none; opacity:.7;
+    background:
+      radial-gradient(90px 90px at 8% 12%, var(--p-rose), transparent 70%),
+      radial-gradient(120px 120px at 90% 20%, var(--p-amber), transparent 70%),
+      radial-gradient(110px 110px at 15% 90%, var(--p-mint), transparent 70%),
+      radial-gradient(100px 100px at 92% 90%, var(--p-violet), transparent 70%);
+  }
+  .title{ position:relative; display:flex; align-items:center; gap:12px; }
+  .logo{
+    width:48px; height:48px; border-radius:14px; display:grid; place-items:center;
+    background: var(--btn-grad);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, .25);
+    font-size:22px;
+  }
+  h1{ margin:0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing:.02em; }
+  .subtitle{ color:var(--muted); font-size:13px; }
 
-  /* 紙吹雪キャンバス */
-  #confettiCanvas { position: fixed; inset:0; z-index: 9998; pointer-events:none; display:none; }
+  /* ===== Cards / Controls ===== */
+  .card{
+    border:1px solid var(--border); background:var(--surface);
+    border-radius:18px; padding:14px; box-shadow:var(--shadow);
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  label{ font-size:14px; color:var(--muted); }
+
+  select, input[type="number"]{
+    background:#fff; border:1px solid var(--border); color:var(--ink);
+    border-radius:12px; padding:10px 12px; font-size:16px; outline:none;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  select:focus, input[type="number"]:focus{
+    border-color:#c7d2fe; box-shadow:0 0 0 3px rgba(199,210,254,.6);
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+
+  .btn{
+    border:0; border-radius:12px; padding:10px 14px; cursor:pointer;
+    font-weight:800; letter-spacing:.02em; color:#0b1220;
+    box-shadow: 0 8px 20px rgba(14, 165, 233, .20);
+    background: var(--btn-grad); transition: transform .07s ease, filter .15s ease;
+  }
+  .btn:hover{ filter:brightness(1.05); }
+  .btn:active{ transform: translateY(1px); }
+  .btn.secondary{ background: var(--btn-grad-2); }
+  .btn.ghost{
+    background:#fff; color:var(--ink); border:1px solid var(--border);
+    box-shadow:none;
+  }
+  .btn.warn{
+    background: linear-gradient(135deg, #fda4af, #fb7185);
+    color:#fff; box-shadow:0 8px 22px rgba(251, 113, 133, .25);
+  }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
+
+  /* ===== Display ===== */
+  .display{ display:grid; gap:8px; text-align:center; }
+  #numberDisplay{
+    font-size: clamp(46px, 10vw, 100px); font-weight:900; letter-spacing:.03em;
+    color: var(--accent);
+    text-shadow: 0 12px 34px rgba(251, 113, 133, .35);
+    min-height:1.2em;
+  }
+  #status{ color:var(--muted); min-height:1.2em; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .chip{
+    padding:6px 10px; border-radius:999px; font-weight:800; font-size:14px;
+    border:1px solid var(--border); background:#fff;
+  }
+  .chip--rose{ background:var(--p-rose); }
+  .chip--pink{ background:var(--p-pink); }
+  .chip--violet{ background:var(--p-violet); }
+  .chip--sky{ background:var(--p-sky); }
+  .chip--mint{ background:var(--p-mint); }
+  .chip--amber{ background:var(--p-amber); }
+
+  /* ===== Results ===== */
+  #results{ display:grid; gap:8px; }
+  .result-item{
+    background:#fff; border:1px solid var(--border); border-radius:14px;
+    padding:10px 12px; box-shadow: var(--shadow);
+  }
+
+  /* ===== Overlays ===== */
+  #revealOverlay, #luckyOverlay{
+    position:fixed; inset:0; display:none; place-items:center;
+    background: rgba(0,0,0,.28);
+    z-index:50;
+  }
+  .reveal-card, .lucky-card{
+    background: linear-gradient(180deg, #fff, #fff9);
+    border:1px solid var(--border); color:#111827; border-radius:18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.12);
+    padding:18px 22px; max-width:min(92vw,720px); text-align:center;
+    animation: pop .28s ease-out;
+  }
+  @keyframes pop{ from{ transform:scale(.9); opacity:0 } to{ transform:scale(1); opacity:1 } }
+
+  .reveal-title{ font-size:clamp(16px, 4vw, 18px); color:#475569; font-weight:700; }
+  .reveal-number{
+    font-size: clamp(68px, 16vw, 140px); line-height:1; font-weight:900;
+    color:#ef4444; text-shadow:0 12px 30px rgba(239, 68, 68, .35);
+  }
+  .reveal-sub{ font-size:13px; color:#64748b; }
+
+  .lucky-title{ font-size:clamp(20px,5vw,26px); font-weight:900; color:#92400e; margin-bottom:10px; }
+  .seat-grid{ display:grid; gap:10px; grid-template-columns:repeat(auto-fill, minmax(64px,1fr)); margin-top:12px; }
+  .seat-btn{
+    padding:10px 0; border-radius:12px; border:1px solid #facc15;
+    background: linear-gradient(180deg, #fff7ed, #fffbeb);
+    color:#92400e; font-weight:900; cursor:pointer;
+    transition: transform .06s ease;
+    box-shadow:0 10px 24px rgba(245,158,11,.18);
+  }
+  .seat-btn:active{ transform: translateY(1px); }
+
+  /* Confetti */
+  #confettiCanvas{ position:fixed; inset:0; z-index:40; pointer-events:none; display:none; }
 </style>
 </head>
 <body>
+  <div class="app">
+    <section class="hero">
+      <div class="dots"></div>
+      <div class="title">
+        <div class="logo">🎉</div>
+        <div>
+          <h1>席決めくじ引き</h1>
+        </div>
+      </div>
+    </section>
 
-<h1>席決めくじ引き</h1>
+    <section class="card">
+      <div class="row">
+        <label for="currentName">今回回す人</label>
+        <select id="currentName" aria-label="参加者を選択"></select>
 
-<!-- 参加者（HTML内に固定定義：必要に応じて編集してください） -->
-<script>
-  const PRESET_NAMES = [
-    "田中", "佐藤", "鈴木", "高橋", "伊藤",
-    "渡辺", "山本", "中村", "小林", "加藤"
-  ];
-  /* VOICEVOX 設定（HTTPS推奨のプロキシURL & speaker ID を固定） */
-  const VOICEVOX_BASE   = "https://nishikawayota.github.io/seat/api/voicevox"; // ← 変更してください
-  const VOICEVOX_SPEAKER= 3;  // 例：ずんだもん
-</script>
+        <label for="count">座席数</label>
+        <input type="number" id="count" placeholder="未入力＝名簿人数" min="1" inputmode="numeric" />
 
-<!-- 操作行 -->
-<div class="row" id="currentWrap">
-  <label for="currentName">今回回す人：</label>
-  <select id="currentName"></select>
-  <input type="number" id="count" placeholder="人数（未入力=名簿人数）" min="1" inputmode="numeric" />
-  <button class="btn" id="startBtn">スタート</button>
-  <button class="btn" id="stopBtn" style="display:none;">ストップ！</button>
-  <button class="btn" id="resetBtn">リセット</button>
-  <button class="btn" id="muteBtn" aria-pressed="false">🔊 ミュート</button>
-  <button class="btn" id="updateBtn">🔄 更新</button>
-</div>
+        <button class="btn" id="startBtn">スタート</button>
+        <button class="btn warn" id="stopBtn" style="display:none;">ストップ！</button>
+        <button class="btn secondary" id="resetBtn">リセット</button>
+        <button class="btn ghost" id="muteBtn" aria-pressed="false" title="効果音ミュート">🔊 サウンド</button>
+        <button class="btn ghost" id="updateBtn" title="PWA更新">🔄 更新</button>
+      </div>
 
-<div class="row" style="font-size:14px; color:#374151;">
-  <span>ラッキー確率：</span>
-  <input type="number" id="luckyProb" step="0.001" min="0" max="1" placeholder="未設定なら 1/初期人数" />
-  <span>（0〜1、例：0.1で10%）</span>
-</div>
+      <div class="row" style="color:var(--muted); font-size:13px;">
+        <span>ラッキー抽選の確率</span>
+        <input type="number" id="luckyProb" step="0.001" min="0" max="1" placeholder="未設定なら 1/初期人数" />
+        <span>（0〜1、例：0.1で10%）</span>
+      </div>
+    </section>
 
-<div id="numberDisplay">---</div>
-<div id="status"></div>
-<div id="results"></div>
+    <section class="card display" aria-live="polite">
+      <div id="numberDisplay">---</div>
+      <div id="status"></div>
+      <div class="chips" id="chips"></div>
+    </section>
 
-<!-- 効果音 -->
-<audio id="drum" src="sounds/drumroll.mp3?v=16" preload="auto" loop></audio>
-<audio id="fanfare" src="sounds/fanfare.mp3?v=16" preload="auto"></audio>
-<audio id="sun" src="sounds/sun.mp3?v=16" preload="auto"></audio>
-
-<!-- 紙吹雪＆当選リビール（通常） -->
-<canvas id="confettiCanvas"></canvas>
-<div id="revealOverlay" aria-hidden="true">
-  <div class="reveal-card" role="dialog" aria-modal="true" aria-live="assertive">
-    <div id="revealTitle" class="reveal-title">当選席番号</div>
-    <div id="revealNumber" class="reveal-number">--</div>
-    <div class="reveal-sub">タップで閉じる</div>
+    <section class="card">
+      <div id="results" aria-label="結果一覧"></div>
+    </section>
   </div>
-</div>
 
-<!-- ラッキー（好きな席を選べる） -->
-<div id="luckyOverlay" aria-hidden="true">
-  <div class="lucky-card" role="dialog" aria-modal="true" aria-live="assertive">
-    <div id="luckyTitle" class="lucky-title"><span class="sparkle">✨</span>ラッキー！好きな席を選ぶことができます！<span class="sparkle">✨</span></div>
-    <div id="luckySub">残っている席から1つ選んでください。</div>
-    <div id="seatGrid" class="seat-grid" style="margin-top:10px"></div>
-    <div style="margin-top:10px; font-size:12px; color:#6b7280;">※タップすると確定します</div>
+  <!-- 効果音 -->
+  <audio id="drum" src="sounds/drumroll.mp3?v=18" preload="auto" loop></audio>
+  <audio id="fanfare" src="sounds/fanfare.mp3?v=18" preload="auto"></audio>
+
+  <!-- 紙吹雪＆当選オーバーレイ -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <div id="revealOverlay" aria-hidden="true">
+    <div class="reveal-card">
+      <div id="revealTitle" class="reveal-title">当選席番号</div>
+      <div id="revealNumber" class="reveal-number">--</div>
+      <div class="reveal-sub">タップで閉じる</div>
+    </div>
   </div>
-</div>
+
+  <!-- ラッキー（好きな席を選べる） -->
+  <div id="luckyOverlay" aria-hidden="true">
+    <div class="lucky-card">
+      <div id="luckyTitle" class="lucky-title">✨ ラッキー！好きな席を選ぶことができます！ ✨</div>
+      <div>残っている席から1つ選んでください。</div>
+      <div id="seatGrid" class="seat-grid" style="margin-top:10px"></div>
+      <div style="margin-top:10px; font-size:12px; color:#6b7280;">※タップすると確定します</div>
+    </div>
+  </div>
 
 <script>
-/* ====== 名簿（固定） ====== */
+/* ===== 固定名簿（ここを書き換え） ===== */
+const PRESET_NAMES = [
+  "池田さん", "坂下さん", "平川さん", "佐藤真季さん", "中川さん",
+  "山崎さん", "高山さん","緒方幸恵さん","渡邊さん", "藤内さん", "大石さん", 
+  "高原さん", "神野さん", "新名さん", "左右知さん","佐藤翔太さん","木下さん",
+   "緒方健太さん", "坂元さん","末並さん", "惣川さん", "浦脇さん", "中山さん", "中野さん",
+   "小名川さん", "波多野えいこさん", "田村さん", "長尾さん", "内藤さん",
+];
+
+/* ===== 参照 ===== */
 let names = [...PRESET_NAMES];
 let assigned = new Set();
 const currentNameSel = document.getElementById('currentName');
+
+const startBtn = document.getElementById('startBtn');
+const stopBtn  = document.getElementById('stopBtn');
+const resetBtn = document.getElementById('resetBtn');
+const muteBtn  = document.getElementById('muteBtn');
+const updateBtn= document.getElementById('updateBtn');
+
+const numberDisplay = document.getElementById('numberDisplay');
+const resultsDiv = document.getElementById('results');
+const statusDiv = document.getElementById('status');
+const chipsDiv = document.getElementById('chips');
+
+const drum = document.getElementById('drum');
+const fanfare = document.getElementById('fanfare');
+const luckyProbInput = document.getElementById('luckyProb');
+
+const confettiCanvas = document.getElementById('confettiCanvas');
+const ctx = confettiCanvas.getContext('2d');
+
+const revealOverlay = document.getElementById('revealOverlay');
+const revealTitleEl = document.getElementById('revealTitle');
+const revealNumberEl = document.getElementById('revealNumber');
+
+const luckyOverlay = document.getElementById('luckyOverlay');
+const luckyTitle = document.getElementById('luckyTitle');
+const seatGrid = document.getElementById('seatGrid');
+
+/* ===== 状態 ===== */
+let seats = [];
+let intervalId = null;
+let currentNumber = null;
+let finished = false;
+let muted = false;
+let totalCount = 0;
+let initialCount = 0;
+let currentPlayer = null;
+
+/* ===== 名簿 ===== */
 function populateNameSelect() {
   const remaining = names.filter(n => !assigned.has(n));
   currentNameSel.innerHTML = '';
@@ -133,45 +313,12 @@ function populateNameSelect() {
 }
 populateNameSelect();
 
-/* ====== 既存抽選ロジック・演出 ====== */
-let seats = [];
-let intervalId = null;
-let currentNumber = null;
-let finished = false;
-let muted = false;
-let totalCount = 0;
-let initialCount = 0;
-let currentPlayer = null;
-
-const startBtn = document.getElementById('startBtn');
-const stopBtn  = document.getElementById('stopBtn');
-const resetBtn = document.getElementById('resetBtn');
-const muteBtn  = document.getElementById('muteBtn');
-const updateBtn= document.getElementById('updateBtn');
-const numberDisplay = document.getElementById('numberDisplay');
-const resultsDiv = document.getElementById('results');
-const statusDiv = document.getElementById('status');
-const drum = document.getElementById('drum');
-const fanfare = document.getElementById('fanfare');
-const sun = document.getElementById('sun');
-const luckyProbInput = document.getElementById('luckyProb');
-
-const confettiCanvas = document.getElementById('confettiCanvas');
-const ctx = confettiCanvas.getContext('2d');
-const revealOverlay = document.getElementById('revealOverlay');
-const revealTitleEl = document.getElementById('revealTitle');
-const revealNumberEl = document.getElementById('revealNumber');
-
-const luckyOverlay = document.getElementById('luckyOverlay');
-const luckyTitle = document.getElementById('luckyTitle');
-const seatGrid = document.getElementById('seatGrid');
-
+/* ===== 紙吹雪 ===== */
 function resizeCanvas(){ confettiCanvas.width = innerWidth; confettiCanvas.height = innerHeight; }
 addEventListener('resize', resizeCanvas); resizeCanvas();
 
-/* 紙吹雪 */
 let confetti = []; let confettiRunning = false;
-function launchConfetti(duration=1600, count=220, gold=false){
+function launchConfetti(duration=1600, count=260, gold=false){
   confetti = [];
   const w = confettiCanvas.width, h = confettiCanvas.height;
   for(let i=0;i<count;i++){
@@ -190,56 +337,33 @@ function launchConfetti(duration=1600, count=220, gold=false){
   requestAnimationFrame(tick);
 }
 
-/* ステータス */
+/* ===== 表示 ===== */
+function renderChips() {
+  const classes = ['chip--rose','chip--pink','chip--violet','chip--sky','chip--mint','chip--amber'];
+  chipsDiv.innerHTML = seats.map((n,i) => `<span class="chip ${classes[i%classes.length]}">${n}</span>`).join('');
+}
 function updateStatus(){
   const remainingSeats = seats.length;
   const remainingPeople = names.filter(n=>!assigned.has(n)).length;
   statusDiv.textContent = finished ? 'ルーレットが終了しました' : `残り座席 ${remainingSeats} / 合計 ${totalCount}　|　未決定の人 ${remainingPeople}`;
+  renderChips();
 }
 
-/* 初期化 */
+/* ===== 初期化 ===== */
 function initSeats(count){
   totalCount = count; initialCount = count;
   seats = Array.from({length: count}, (_,i)=> i+1);
   finished=false; resultsDiv.innerHTML=''; numberDisplay.textContent='---'; updateStatus();
 }
 
-/* ラッキー判定 */
+/* ===== ラッキー判定 ===== */
 function isLuckyHit(){
   const input = parseFloat(luckyProbInput.value);
   const p = (!isNaN(input) && input>=0 && input<=1) ? input : (initialCount>0 ? (1/initialCount) : 0.1);
   return Math.random() < p;
 }
 
-/* ==== VOICEVOX 読み上げ（固定設定） ==== */
-async function speakVoiceVox(text){
-  const base = VOICEVOX_BASE.trim().replace(/\/+$/,'');
-  const speaker = parseInt(VOICEVOX_SPEAKER, 10);
-  if (!base) return;
-
-  // 1) audio_query
-  const qParams = new URLSearchParams({ text, speaker: String(speaker) }).toString();
-  const qRes = await fetch(`${base}/audio_query?${qParams}`, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }});
-  if (!qRes.ok) { console.warn('audio_query失敗', qRes.status); return; }
-  const query = await qRes.json();
-
-  // 2) synthesis
-  const sRes = await fetch(`${base}/synthesis?speaker=${speaker}`, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify(query)
-  });
-  if (!sRes.ok) { console.warn('synthesis失敗', sRes.status); return; }
-  const blob = await sRes.blob(); // audio/wav
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  audio.play().catch(()=>{});
-}
-function announceNormal(name, seatNo){ speakVoiceVox(`${name} さんは、席番号 ${seatNo} に決定しました。`); }
-function announceLuckyStart(name){ speakVoiceVox(`ラッキー！ ${name} さんは、好きな席を選ぶことができます。残っている席から、一つ選んでください。`); }
-function announceLuckyChosen(name, seatNo){ speakVoiceVox(`ラッキー！ ${name} さんは、席番号 ${seatNo} を選びました。`); }
-
-/* スタート／ストップ */
+/* ===== スタート／ストップ ===== */
 function startDraw(){
   const sel = currentNameSel.value;
   if (!sel) { alert('今回回す人を選んでください'); return; }
@@ -249,13 +373,12 @@ function startDraw(){
   const countInput = parseInt(document.getElementById('count').value);
   if (!seats.length && !finished) {
     const effectiveCount = (!isNaN(countInput) && countInput>0) ? countInput : (names.length || 0);
-    if (!effectiveCount) { alert('人数を入力するか、名簿を編集してください'); return; }
+    if (!effectiveCount) { alert('座席数を入力してください'); return; }
     initSeats(effectiveCount);
   }
   if (finished) return;
 
-  stopBtn.style.display='inline-block'; startBtn.disabled=true; resetBtn.disabled=true;
-  currentNameSel.disabled=true;
+  stopBtn.style.display='inline-block'; startBtn.disabled=true; resetBtn.disabled=true; currentNameSel.disabled=true;
 
   if (!muted) { try { drum.currentTime=0; drum.play(); } catch(e){} }
 
@@ -264,6 +387,7 @@ function startDraw(){
     numberDisplay.textContent = currentNumber;
   }, 50);
 }
+
 function stopDraw(){
   if (!intervalId) return;
   clearInterval(intervalId); intervalId=null; drum.pause();
@@ -279,14 +403,12 @@ function stopDraw(){
   revealNumberEl.textContent = currentNumber;
   revealOverlay.style.display='grid';
   if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
-  if (!confettiRunning) launchConfetti(1600, 220, false);
-
-  announceNormal(currentPlayer, currentNumber); // 読み上げ
+  if (!confettiRunning) launchConfetti(1600, 260, false);
 }
 
-/* ラッキー */
+/* ===== ラッキー処理 ===== */
 function showLuckyOverlay(){
-  luckyTitle.innerHTML = `<span class="sparkle">✨</span>${currentPlayer} さんは好きな席を選ぶことができます！<span class="sparkle">✨</span>`;
+  luckyTitle.textContent = `✨ ラッキー！ ${currentPlayer} さんは好きな席を選ぶことができます！ ✨`;
   seatGrid.innerHTML='';
   [...seats].sort((a,b)=>a-b).forEach(n=>{
     const btn=document.createElement('button'); btn.className='seat-btn'; btn.textContent=n;
@@ -294,51 +416,49 @@ function showLuckyOverlay(){
     seatGrid.appendChild(btn);
   });
   luckyOverlay.style.display='grid';
-  if (!muted) { try { sun.currentTime=0; sun.play(); } catch(e){} }
-  if (!confettiRunning) launchConfetti(1800, 260, true);
-
-  announceLuckyStart(currentPlayer); // 読み上げ
+  if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
+  if (!confettiRunning) launchConfetti(1800, 280, true);
 }
+
 function chooseLuckySeat(n){
   currentNumber = n;
   seats = seats.filter(x=> x!==n);
   luckyOverlay.style.display='none';
-  resultsDiv.innerHTML += `<div>🎉 <strong>ラッキー！</strong> <strong>${currentPlayer}</strong> さんは 好きな席 <strong>${currentNumber}</strong> を選びました！</div>`;
+  resultsDiv.innerHTML += `<div class="result-item">🎉 <strong>ラッキー！</strong> <strong>${currentPlayer}</strong> さんは 好きな席 <strong>${currentNumber}</strong> を選びました！</div>`;
   numberDisplay.textContent='---';
-
-  announceLuckyChosen(currentPlayer, currentNumber); // 読み上げ
-
   finishOne();
 }
 
-/* 通常オーバーレイ（タップで閉じる） */
+/* ===== 通常当選オーバーレイ（タップで閉じる） ===== */
 revealOverlay.addEventListener('click', ()=>{
   revealOverlay.style.display='none';
-  resultsDiv.innerHTML += `<div>→ <strong>${currentPlayer}</strong> さんは <strong>席番号 ${currentNumber}</strong> に決定しました。</div>`;
+  resultsDiv.innerHTML += `<div class="result-item">→ <strong>${currentPlayer}</strong> さんは <strong>席番号 ${currentNumber}</strong> に決定しました。</div>`;
   numberDisplay.textContent='---';
   finishOne();
 });
 
-/* 結果後の共通処理 */
+/* ===== 結果後の共通処理 ===== */
 function finishOne(){
   stopBtn.style.display='none'; startBtn.disabled=false; resetBtn.disabled=false;
+
   assigned.add(currentPlayer); currentPlayer=null; populateNameSelect();
   currentNameSel.disabled=false;
+
   if (seats.length===0){ finished=true; startBtn.disabled=true; stopBtn.disabled=true; }
   updateStatus();
 }
 
-/* リセット・ミュート・更新 */
+/* ===== その他 ===== */
 function resetAll(){
   if (intervalId){ clearInterval(intervalId); intervalId=null; }
-  drum.pause(); fanfare.pause();sun.pause();
+  drum.pause(); fanfare.pause();
   seats=[]; currentNumber=null; finished=false; resultsDiv.innerHTML=''; numberDisplay.textContent='---';
   startBtn.disabled=false; stopBtn.disabled=false; stopBtn.style.display='none';
   revealOverlay.style.display='none'; luckyOverlay.style.display='none';
   confettiCanvas.style.display='none'; confettiRunning=false; assigned.clear(); populateNameSelect();
   currentPlayer=null; currentNameSel.disabled=false; updateStatus();
 }
-function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 ミュート'; muteBtn.setAttribute('aria-pressed', String(muted)); if (muted){ drum.pause(); fanfare.pause(); sun.pause(); } }
+function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 サウンド'; muteBtn.setAttribute('aria-pressed', String(muted)); if (muted){ drum.pause(); fanfare.pause(); } }
 async function checkUpdate(){
   if (!('serviceWorker' in navigator)) return;
   const reg = await navigator.serviceWorker.getRegistration(); if (!reg) return;
@@ -347,13 +467,15 @@ async function checkUpdate(){
   else if (reg.installing) reg.installing.addEventListener('statechange', ()=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); });
 }
 navigator.serviceWorker.addEventListener('controllerchange', ()=> location.reload());
+
+/* ===== イベント ===== */
 startBtn.addEventListener('click', startDraw);
 stopBtn.addEventListener('click', stopDraw);
 resetBtn.addEventListener('click', resetAll);
 muteBtn.addEventListener('click', toggleMute);
 updateBtn.addEventListener('click', checkUpdate);
 
-/* PWA：SW登録 */
+/* ===== SW登録 ===== */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js', { scope: './' }).then(()=> console.log('SW registered'));
 }
