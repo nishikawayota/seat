@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>席決めくじ引き</title>
+
+<!-- PWA用 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3498db">
+<link rel="icon" href="icons/icon-192.png">
+
+<style>
+  body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f0f0; }
+  h1 { color: #333; }
+  input, button { padding: 10px; font-size: 18px; margin: 10px; }
+  #numberDisplay { font-size: 50px; font-weight: bold; margin: 40px 0; color: #e74c3c; }
+  #results { margin-top: 20px; font-size: 18px; }
+  .btn { background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>席決めくじ引き</h1>
+<input type="number" id="count" placeholder="人数を入力" min="1">
+<button class="btn" onclick="startDraw()">スタート</button>
+
+<div id="numberDisplay">---</div>
+<button class="btn" id="stopButton" style="display:none;" onclick="stopDraw()">ストップ！</button>
+
+<div id="results"></div>
+
+<script>
+let seats = [];
+let intervalId;
+let currentNumber;
+
+function startDraw() {
+  const count = parseInt(document.getElementById('count').value);
+  if (!count || count <= 0) {
+    alert('人数を正しく入力してください');
+    return;
+  }
+  
+  if (seats.length === 0) {
+    seats = Array.from({length: count}, (_, i) => i + 1);
+  }
+
+  if (seats.length === 0) {
+    alert('全員分の席が決まりました！');
+    return;
+  }
+
+  document.getElementById('stopButton').style.display = 'inline-block';
+  
+  intervalId = setInterval(() => {
+    currentNumber = seats[Math.floor(Math.random() * seats.length)];
+    document.getElementById('numberDisplay').textContent = currentNumber;
+  }, 50);
+}
+
+function stopDraw() {
+  clearInterval(intervalId);
+  seats = seats.filter(num => num !== currentNumber);
+  document.getElementById('results').innerHTML += `<div>→ 席番号 ${currentNumber} 決定！</div>`;
+  document.getElementById('stopButton').style.display = 'none';
+  document.getElementById('numberDisplay').textContent = '---';
+}
+
+// PWA用Service Worker登録
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(() => console.log('Service Worker registered'));
+}
+</script>
+
+</body>
+</html>
