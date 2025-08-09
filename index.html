@@ -6,7 +6,7 @@
 <title>席決めくじ引き</title>
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json?v=8">
 <meta name="theme-color" content="#3498db">
 <link rel="icon" href="icons/icon-192.png">
 
@@ -32,16 +32,15 @@
   <button class="btn" id="stopBtn" style="display:none;">ストップ！</button>
   <button class="btn" id="resetBtn">リセット</button>
   <button class="btn" id="muteBtn" aria-pressed="false">🔊 ミュート</button>
+  <button class="btn" id="updateBtn">🔄 更新</button>
 </div>
 
 <div id="numberDisplay">---</div>
 <div id="status"></div>
 <div id="results"></div>
 
-<!-- ドラムロール音（ユーザー操作で再生開始。iOS対策でcontrolsは非表示） -->
-<!-- 音声ファイル追加 -->
-<audio id="drum" src="sounds/drumroll.mp3" preload="auto" loop></audio>
-<audio id="fanfare" src="sounds/fanfare.mp3" preload="auto"></audio>
+<audio id="drum" src="sounds/drumroll.mp3?v=8" preload="auto" loop></audio>
+<audio id="fanfare" src="sounds/fanfare.mp3?v=8" preload="auto"></audio>
 
 <script>
 let seats = [];
@@ -49,54 +48,18 @@ let intervalId = null;
 let currentNumber = null;
 let finished = false;
 let muted = false;
+let totalCount = 0;
 
 const startBtn = document.getElementById('startBtn');
 const stopBtn  = document.getElementById('stopBtn');
 const resetBtn = document.getElementById('resetBtn');
 const muteBtn  = document.getElementById('muteBtn');
+const updateBtn= document.getElementById('updateBtn');
 const numberDisplay = document.getElementById('numberDisplay');
 const resultsDiv = document.getElementById('results');
 const statusDiv = document.getElementById('status');
 const drum = document.getElementById('drum');
 const fanfare = document.getElementById('fanfare');
-
-function stopDraw() {
-  if (!intervalId) return;
-
-  clearInterval(intervalId);
-  intervalId = null;
-
-  // ドラムロール停止
-  drum.pause();
-
-  // 当選番号をリストから除外
-  seats = seats.filter(num => num !== currentNumber);
-
-  // 結果表示
-  resultsDiv.innerHTML += `<div>→ 席番号 ${currentNumber} 決定！</div>`;
-
-  // ファンファーレ再生
-  if (!muted) {
-    fanfare.currentTime = 0;
-    fanfare.play().catch(()=>{});
-  }
-
-  stopBtn.style.display = 'none';
-  startBtn.disabled = false;
-  resetBtn.disabled = false;
-  numberDisplay.textContent = '---';
-
-  // すべて出たら終了表示
-  if (seats.length === 0) {
-    finished = true;
-    startBtn.disabled = true;
-    stopBtn.disabled = true;
-    updateStatus();
-    return;
-  }
-  updateStatus();
-}
-
 
 function updateStatus() {
   if (finished) {
@@ -107,8 +70,6 @@ function updateStatus() {
     statusDiv.textContent = '';
   }
 }
-
-let totalCount = 0;
 
 function initSeats(count) {
   totalCount = count;
@@ -128,17 +89,14 @@ function startDraw() {
     }
     initSeats(countInput);
   }
-
   if (finished) return;
 
   stopBtn.style.display = 'inline-block';
   startBtn.disabled = true;
   resetBtn.disabled = true;
 
-  // ドラムロール再生（ユーザー操作イベント内なので再生可能）
   if (!muted) {
-    drum.currentTime = 0;
-    drum.play().catch(()=>{ /* 再生失敗は握りつぶす */ });
+    try { drum.currentTime = 0; drum.play(); } catch(e) {}
   }
 
   intervalId = setInterval(() => {
@@ -149,25 +107,22 @@ function startDraw() {
 
 function stopDraw() {
   if (!intervalId) return;
-
   clearInterval(intervalId);
   intervalId = null;
 
-  // ドラムロール停止
   drum.pause();
-
-  // 当選番号をリストから除外
   seats = seats.filter(num => num !== currentNumber);
-
-  // 結果表示
   resultsDiv.innerHTML += `<div>→ 席番号 ${currentNumber} 決定！</div>`;
+
+  if (!muted) {
+    try { fanfare.currentTime = 0; fanfare.play(); } catch(e) {}
+  }
 
   stopBtn.style.display = 'none';
   startBtn.disabled = false;
   resetBtn.disabled = false;
   numberDisplay.textContent = '---';
 
-  // すべて出たら終了表示＆操作制御
   if (seats.length === 0) {
     finished = true;
     startBtn.disabled = true;
@@ -179,9 +134,9 @@ function stopDraw() {
 }
 
 function resetAll() {
-  clearInterval(intervalId);
-  intervalId = null;
+  if (intervalId) { clearInterval(intervalId); intervalId = null; }
   drum.pause();
+  fanfare.pause();
   seats = [];
   currentNumber = null;
   finished = false;
@@ -197,19 +152,36 @@ function toggleMute() {
   muted = !muted;
   muteBtn.textContent = muted ? '🔇 ミュート解除' : '🔊 ミュート';
   muteBtn.setAttribute('aria-pressed', String(muted));
-  if (muted) drum.pause();
+  if (muted) { drum.pause(); fanfare.pause(); }
 }
 
-// イベント紐付け
+async function checkUpdate() {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return;
+  await reg.update();
+  if (reg.waiting) {
+    reg.waiting.postMessage({type:'SKIP_WAITING'});
+  } else if (reg.installing) {
+    reg.installing.addEventListener('statechange', () => {
+      if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+    });
+  }
+}
+
+navigator.serviceWorker.addEventListener('controllerchange', () => {
+  window.location.reload();
+});
+
 startBtn.addEventListener('click', startDraw);
 stopBtn.addEventListener('click', stopDraw);
 resetBtn.addEventListener('click', resetAll);
 muteBtn.addEventListener('click', toggleMute);
+updateBtn.addEventListener('click', checkUpdate);
 
-// PWA Service Worker登録
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js')
-    .then(() => console.log('Service Worker registered'));
+  navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+    .then(() => console.log('SW registered'));
 }
 </script>
 </body>
