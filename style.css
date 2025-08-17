@@ -23,6 +23,8 @@
     --seat-taken: #bbf7d0;
     --seat-taken-bd: #34d399;
     --seat-taken-tag:#065f46;
+  
+    --manager-edit: #ddd6fe; /* violet-200 */
   }
   *{ box-sizing: border-box; }
   html,body{ height:100%; }
@@ -95,7 +97,7 @@
   .row-hint{ color:var(--muted); font-size:13px; }
   
   select{
-    background:#fff; border:1px solid var(--border); color:var(--ink);
+    background:#fff; border:1px solid var(--border); color:#0f172a;
     border-radius:12px; padding:10px 12px; font-size:16px; outline:none;
     transition: box-shadow .15s, border-color .15s;
     min-width: 120px;
@@ -109,9 +111,10 @@
     box-shadow: 0 6px 16px rgba(14, 165, 233, .16);
     background: var(--btn-grad-2); transition: transform .07s ease, filter .15s ease;
   }
-  .btn.ghost{ background:#fff; color:var(--ink); border:1px solid var(--border); box-shadow:none; }
+  .btn.ghost{ background:#fff; color:#0f172a; border:1px solid var(--border); box-shadow:none; }
   .btn:active{ transform: translateY(1px); }
   .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+  .manager-toggle{ background: linear-gradient(135deg, #ddd6fe, #bae6fd); }
   
   /* Display */
   .display{ display:grid; gap:10px; text-align:center; }
@@ -130,6 +133,7 @@
   .legend-swatch{ width:18px; height:12px; border-radius:4px; border:1px solid var(--border); }
   .legend-free { background: var(--seat-free); }
   .legend-taken{ background: var(--seat-taken); border-color: var(--seat-taken-bd); }
+  .legend-edit { background: var(--manager-edit); border-color: #c4b5fd; }
   
   .seat-grid{
     --cols: 5;
@@ -149,22 +153,24 @@
     align-items: start;
     justify-items: center;
     text-align: center;
+    transition: transform .06s ease, outline-color .15s ease, background .2s ease;
   }
-  .seat .no{
-    font-weight: 900; font-size: 14px; color: var(--seat-free-tag);
-  }
-  .seat .name{
-    font-weight: 800; font-size: 12px; color: #0f172a; word-break: break-word;
-  }
-  .seat.is-aisle{
-    background: transparent; border: 1px dashed #e5e7eb; opacity:.5;
-  }
-  .seat.is-taken{
-    background: var(--seat-taken);
-    border-color: var(--seat-taken-bd);
-  }
+  .seat .no{ font-weight: 900; font-size: 14px; color: var(--seat-free-tag); }
+  .seat .name{ font-weight: 800; font-size: 12px; color: #0f172a; word-break: break-word; }
+  .seat.is-aisle{ background: transparent; border: 1px dashed #e5e7eb; opacity:.5; }
+  .seat.is-taken{ background: var(--seat-taken); border-color: var(--seat-taken-bd); }
   .seat.is-taken .no{ color: var(--seat-taken-tag); }
   .seat.is-taken .name{ color: #064e3b; }
+  
+  body.manager-mode .seat:not(.is-draw){
+    cursor: pointer;
+    outline: 2px dashed #c4b5fd;
+    background: linear-gradient(180deg, #fff, var(--manager-edit));
+  }
+  .only-manager{ display:none; }
+  body.manager-mode .only-manager{ display:inline-flex; }
+  .manager-hint{ font-size:12px; color:#6b7280; margin-top:8px; display:none; }
+  body.manager-mode .manager-hint{ display:block; }
   
   /* Chips & results */
   .chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
@@ -182,7 +188,7 @@
     padding:10px 12px; box-shadow: var(--shadow); font-size: 15px;
   }
   
-  /* Overlays */
+  /* Overlays (抽選・ラッキー) */
   #revealOverlay, #luckyOverlay{
     position:fixed; inset:0; display:none; place-items:center;
     background: rgba(0,0,0,.62);
@@ -216,7 +222,26 @@
   .seat-btn:active{ transform: translateY(1px); }
   .overlay-note{ margin-top:10px; font-size:12px; color:#6b7280; }
   
-  /* Confetti */
+  /* 幹事モード用オーバーレイ */
+  #managerOverlay{
+    position:fixed; inset:0; display:none; place-items:center;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(2px); z-index:70;
+  }
+  .manager-card{
+    background:#fff; border: 2px solid #e5e7eb; border-radius:18px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.35);
+    padding:18px; width:min(92vw, 520px);
+    animation: pop .26s ease-out;
+  }
+  .manager-title{ font-weight:900; font-size:18px; margin-bottom:10px; }
+  .manager-row{ display:grid; gap:6px; margin:8px 0; }
+  .manager-row label{ font-size:14px; color:#475569; }
+  .manager-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .manager-divider{ height:1px; background:#e5e7eb; margin:12px 0; }
+  .manager-note{ font-size:12px; color:#6b7280; margin-top:8px; }
+  .manager-close{ margin-top:10px; }
+  .file-label{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+  
   #confettiCanvas{ position:fixed; inset:0; z-index:55; pointer-events:none; display:none; }
   
   /* iPhone SE / 小画面調整 */

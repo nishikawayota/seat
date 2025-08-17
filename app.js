@@ -1,17 +1,22 @@
-const VERSION = "21"; // キャッシュ更新用（JSON/CSS/JSの ?v= に合わせる）
+const VERSION = "24"; // キャッシュ更新用
 
-/* ======== fetch data (names & seat layout) ======== */
+/* ======== fetch data (names / seat layout / preset) ======== */
 async function loadData() {
-  const [namesRes, layoutRes] = await Promise.all([
+  const [namesRes, layoutRes, presetRes] = await Promise.all([
     fetch(`./data/names.json?v=${VERSION}`),
     fetch(`./data/seat_layout.json?v=${VERSION}`),
+    fetch(`./data/seat_preset.json?v=${VERSION}`).catch(() => null)
   ]);
   if (!namesRes.ok) throw new Error("names.json の読み込みに失敗しました");
   if (!layoutRes.ok) throw new Error("seat_layout.json の読み込みに失敗しました");
 
   const names = await namesRes.json();
   const seatLayout = await layoutRes.json();
-  return { names, seatLayout };
+  let preset = {};
+  if (presetRes && presetRes.ok) {
+    try { preset = await presetRes.json(); } catch(_) {}
+  }
+  return { names, seatLayout, preset };
 }
 
 /* ======== DOM refs ======== */
@@ -20,6 +25,7 @@ const stopBtn  = document.getElementById('stopBtn');
 const resetBtn = document.getElementById('resetBtn');
 const muteBtn  = document.getElementById('muteBtn');
 const updateBtn= document.getElementById('updateBtn');
+const managerBtn = document.getElementById('managerBtn');
 const currentNameSel = document.getElementById('currentName');
 
 const numberDisplay = document.getElementById('numberDisplay');
@@ -44,11 +50,24 @@ const seatGridOverlay = document.getElementById('seatGridOverlay');
 
 const seatGrid = document.getElementById('seatGrid');
 
+/* 幹事モードUI */
+const managerOverlay = document.getElementById('managerOverlay');
+const managerSeatTitle = document.getElementById('managerSeatTitle');
+const managerNameSelect = document.getElementById('managerNameSelect');
+const managerApplyBtn = document.getElementById('managerApplyBtn');
+const managerClearBtn = document.getElementById('managerClearBtn');
+const managerCloseBtn = document.getElementById('managerCloseBtn');
+const managerExportBtn = document.getElementById('managerExportBtn');
+const managerImportInput = document.getElementById('managerImportInput');
+
 /* ======== state ======== */
 let names = [];
 let seatLayout = [];
-let namesAssigned = new Set();        // 決定済みの参加者名
-let seats = [];                       // 未確定の席番号リスト
+let seatPreset = {};                     // 事前割り当て seatNo -> name
+
+let namesAssignedDraw = new Set();       // 抽選で確定済み（編集不可）
+let namesAssignedPreset = new Set();     // 事前割り当てで確定済み（編集可）
+let seats = [];                          // 未確定席番号
 let intervalId = null;
 let currentNumber = null;
 let finished = false;
@@ -56,8 +75,15 @@ let muted = false;
 let totalCount = 0;
 let initialCount = 0;
 let currentPlayer = null;
-const seatCellByNo = new Map();       // seatNo -> HTMLElement
-const seatNameByNo = new Map();       // seatNo -> assigned name
+let managerMode = false;
+let managerSeatNo = null;                // 現在編集中の席番号
+
+const seatCellByNo = new Map();
+const seatNameByNo = new Map();
+
+function unionAssigned(){ // 合成（UIのプルダウン等で使用）
+  return new Set([...namesAssignedDraw, ...namesAssignedPreset]);
+}
 
 /* ======== helpers ======== */
 function getAllSeatNumbers(layout){
@@ -65,9 +91,7 @@ function getAllSeatNumbers(layout){
   for (const row of layout) for (const v of row) if (typeof v === 'number') nums.push(v);
   return nums;
 }
-function maxCols(layout){
-  return Math.max(...layout.map(r => r.length));
-}
+function maxCols(layout){ return Math.max(...layout.map(r => r.length)); }
 function resizeCanvas(){ confettiCanvas.width = innerWidth; confettiCanvas.height = innerHeight; }
 addEventListener('resize', resizeCanvas);
 
@@ -95,7 +119,8 @@ function renderSeatMap(layout){
   }
 }
 function renderNameSelect(){
-  const remaining = names.filter(n => !namesAssigned.has(n));
+  const assigned = unionAssigned();
+  const remaining = names.filter(n => !assigned.has(n));
   currentNameSel.innerHTML = '';
   if (!remaining.length) {
     const opt = document.createElement('option'); opt.value=''; opt.text='（全員決定済み）';
@@ -112,7 +137,7 @@ function renderChips() {
 }
 function updateStatus(){
   const remainingSeats = seats.length;
-  const remainingPeople = names.filter(n=>!namesAssigned.has(n)).length;
+  const remainingPeople = names.filter(n=>!unionAssigned().has(n)).length;
   statusDiv.textContent = finished ? 'ルーレットが終了しました' : `残り座席 ${remainingSeats} / 合計 ${totalCount}　|　未決定の人 ${remainingPeople}`;
   renderChips();
 }
@@ -127,10 +152,34 @@ function initFromLayout(){
   resultsDiv.innerHTML = '';
   numberDisplay.textContent = '---';
   seatNameByNo.clear();
+
+  // 全席リセット
   for (const [no, el] of seatCellByNo.entries()){
-    el.classList.remove('is-taken');
+    el.classList.remove('is-taken','is-draw','is-preset');
     el.querySelector('.name').textContent = '';
   }
+
+  // 事前割り当てをリセット・反映
+  namesAssignedPreset.clear();
+  for (const value of Object.values(seatPreset)) {
+    if (!names.includes(value)) names.push(value);
+  }
+  for (const [key, name] of Object.entries(seatPreset)) {
+    const no = parseInt(key, 10);
+    if (!Number.isFinite(no)) continue;
+    const el = seatCellByNo.get(no);
+    if (!el) continue;
+
+    seatNameByNo.set(no, name);
+    el.classList.add('is-taken','is-preset');
+    el.querySelector('.name').textContent = name;
+
+    // 抽選から除外 & 名前は事前確定扱い
+    seats = seats.filter(n => n !== no);
+    namesAssignedPreset.add(name);
+  }
+
+  renderNameSelect();
   updateStatus();
 }
 
@@ -164,12 +213,10 @@ function isLuckyHit(){
 function startDraw(){
   const sel = currentNameSel.value;
   if (!sel) { alert('今回回す人を選んでください'); return; }
-  if (namesAssigned.has(sel)) { alert('その方はすでに決定済みです。別の方を選んでください。'); return; }
+  if (unionAssigned().has(sel)) { alert('その方はすでに決定済みです。別の方を選んでください。'); return; }
   currentPlayer = sel;
 
-  if (!seats.length && !finished) {
-    initFromLayout();
-  }
+  if (!seats.length && !finished) initFromLayout();
   if (finished) return;
 
   stopBtn.style.display='block'; startBtn.disabled=true; startBtn.style.opacity=.6; resetBtn.disabled=true; currentNameSel.disabled=true;
@@ -231,12 +278,12 @@ revealOverlay.addEventListener('click', ()=>{
   finishOne();
 });
 
-/* ======== seat commit ======== */
+/* ======== seat commit (抽選確定) ======== */
 function commitSeat(seatNo, name){
   seatNameByNo.set(seatNo, name);
   const el = seatCellByNo.get(seatNo);
   if (el){
-    el.classList.add('is-taken');
+    el.classList.add('is-taken','is-draw');
     const nameEl = el.querySelector('.name');
     if (nameEl) nameEl.textContent = name;
   }
@@ -245,7 +292,10 @@ function commitSeat(seatNo, name){
 /* ======== finish & reset ======== */
 function finishOne(){
   stopBtn.style.display='none'; startBtn.disabled=false; startBtn.style.opacity=1; resetBtn.disabled=false;
-  namesAssigned.add(currentPlayer); currentPlayer=null; renderNameSelect(); currentNameSel.disabled=false;
+
+  namesAssignedDraw.add(currentPlayer);
+  currentPlayer=null; renderNameSelect(); currentNameSel.disabled=false;
+
   if (seats.length===0){ finished=true; startBtn.disabled=true; stopBtn.disabled=true; }
   updateStatus();
 }
@@ -255,8 +305,11 @@ function resetAll(){
   drum.pause(); fanfare.pause();
   seats=[]; currentNumber=null; finished=false; resultsDiv.innerHTML=''; numberDisplay.textContent='---';
   startBtn.disabled=false; startBtn.style.opacity=1; stopBtn.disabled=false; stopBtn.style.display='none';
-  namesAssigned.clear(); renderNameSelect();
-  initFromLayout();
+
+  namesAssignedDraw.clear();
+  initFromLayout(); // ← ここでpreset再適用＆namesAssignedPreset再構築
+  renderNameSelect();
+
   revealOverlay.style.display='none'; luckyOverlay.style.display='none';
   confettiCanvas.style.display='none';
   updateStatus();
@@ -272,27 +325,194 @@ async function checkUpdate(){
 }
 navigator.serviceWorker.addEventListener('controllerchange', ()=> location.reload());
 
+/* ======== 幹事モード ======== */
+function setManagerMode(on){
+  managerMode = on;
+  document.body.classList.toggle('manager-mode', managerMode);
+  managerBtn.textContent = managerMode ? '🛠 幹事モード（ON）' : '🛠 幹事モード';
+}
+managerBtn.addEventListener('click', ()=> setManagerMode(!managerMode));
+
+// 座席セルをクリックで編集（抽選確定済みは不可）
+seatGrid.addEventListener('click', (e)=>{
+  if (!managerMode) return;
+  const seatEl = e.target.closest('.seat');
+  if (!seatEl || seatEl.classList.contains('is-aisle')) return;
+
+  if (seatEl.classList.contains('is-draw')) {
+    alert('この席は抽選で確定済みのため編集できません。');
+    return;
+  }
+  managerSeatNo = parseInt(seatEl.dataset.no, 10);
+  openManagerModal(managerSeatNo);
+});
+
+function openManagerModal(seatNo){
+  managerSeatTitle.textContent = `席 ${seatNo}`;
+  // 選択肢を作成：未決定の人 + 現在この席に割当済の人（あれば先頭に）
+  const assigned = unionAssigned();
+  const currentName = seatPreset[seatNo] || null;
+
+  const options = [];
+  if (currentName) {
+    options.push(currentName); // 先頭に現在名
+  }
+  names.forEach(n => {
+    if (n === currentName) return;
+    if (!assigned.has(n)) options.push(n);
+  });
+
+  managerNameSelect.innerHTML = '';
+  if (!options.length) {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = '（選択可能な人がいません）';
+    managerNameSelect.appendChild(opt);
+    managerApplyBtn.disabled = true;
+  } else {
+    options.forEach(n=>{
+      const opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      managerNameSelect.appendChild(opt);
+    });
+    managerApplyBtn.disabled = false;
+  }
+
+  managerOverlay.style.display = 'grid';
+}
+function closeManagerModal(){
+  managerOverlay.style.display = 'none';
+  managerSeatNo = null;
+}
+managerCloseBtn.addEventListener('click', closeManagerModal);
+managerOverlay.addEventListener('click', (e)=>{ if (e.target === managerOverlay) closeManagerModal(); });
+
+managerApplyBtn.addEventListener('click', ()=>{
+  if (managerSeatNo == null) return;
+  const name = managerNameSelect.value;
+  if (!name) return;
+
+  // その名前が抽選で確定済みなら不可
+  if (namesAssignedDraw.has(name)) { alert('その方は抽選で確定済みです。'); return; }
+
+  applyPreset(managerSeatNo, name);
+  closeManagerModal();
+});
+
+managerClearBtn.addEventListener('click', ()=>{
+  if (managerSeatNo == null) return;
+  clearPreset(managerSeatNo);
+  closeManagerModal();
+});
+
+// 書き出し（seat_preset.json ダウンロード）
+managerExportBtn.addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(seatPreset, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'seat_preset.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// 読み込み（seat_preset.json インポート）
+managerImportInput.addEventListener('change', async (e)=>{
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try{
+    const text = await file.text();
+    const json = JSON.parse(text);
+
+    // すでに抽選で確定している席が含まれていないか軽くチェック
+    for (const [k,v] of Object.entries(json)){
+      const no = parseInt(k,10);
+      const el = seatCellByNo.get(no);
+      if (el && el.classList.contains('is-draw')) {
+        alert(`席${no}は抽選で確定済みのため、インポートからは変更できません。`);
+        return;
+      }
+    }
+
+    seatPreset = json || {};
+    initFromLayout();     // プリセット再適用（抽選結果は維持：namesAssignedDrawはクリアしない）
+    renderNameSelect();
+    alert('プリセットを読み込みました。必要なら書き出して保存してください。');
+  }catch(err){
+    alert('JSONの読み込みに失敗しました。ファイル内容をご確認ください。');
+    console.error(err);
+  } finally {
+    e.target.value = '';
+  }
+});
+
+/* 幹事モード：適用/解除ロジック */
+function applyPreset(seatNo, name){
+  const el = seatCellByNo.get(seatNo);
+  if (!el) return;
+  if (el.classList.contains('is-draw')) return; // 抽選確定席は不可
+
+  // 既存のプリセットがあれば一旦解除
+  const prev = seatPreset[seatNo];
+  if (prev) namesAssignedPreset.delete(prev);
+
+  // もしこの席が抽選対象に戻っていたら、プリセットで再度除外
+  seats = seats.filter(n => n !== seatNo);
+
+  // UI更新
+  el.classList.add('is-taken','is-preset');
+  el.querySelector('.name').textContent = name;
+
+  // 状態更新
+  seatPreset[seatNo] = name;
+  seatNameByNo.set(seatNo, name);
+  namesAssignedPreset.add(name);
+
+  renderNameSelect();
+  updateStatus();
+}
+
+function clearPreset(seatNo){
+  const el = seatCellByNo.get(seatNo);
+  if (!el) return;
+  if (el.classList.contains('is-draw')) return; // 抽選確定席は不可
+
+  const prev = seatPreset[seatNo];
+  if (prev){
+    namesAssignedPreset.delete(prev);
+    delete seatPreset[seatNo];
+  }
+
+  // UI更新：見た目を空席に戻す
+  el.classList.remove('is-taken','is-preset');
+  el.querySelector('.name').textContent = '';
+
+  // 状態更新：抽選対象へ復帰（重複追加防止）
+  if (!seats.includes(seatNo)) seats.push(seatNo);
+  seats.sort((a,b)=>a-b);
+  seatNameByNo.delete(seatNo);
+
+  renderNameSelect();
+  updateStatus();
+}
+
 /* ======== boot ======== */
 (async function boot(){
   try{
     const data = await loadData();
     names = Array.isArray(data.names) ? data.names : [];
     seatLayout = Array.isArray(data.seatLayout) ? data.seatLayout : data.seat_layout || [];
+    seatPreset = data.preset || {};
 
-    // render
     renderSeatMap(seatLayout);
     renderNameSelect();
     resizeCanvas();
     initFromLayout();
 
-    // events
     startBtn.addEventListener('click', startDraw);
     stopBtn.addEventListener('click', stopDraw);
     resetBtn.addEventListener('click', resetAll);
     muteBtn.addEventListener('click', toggleMute);
     updateBtn.addEventListener('click', checkUpdate);
 
-    // SW
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./service-worker.js', { scope: './' }).then(()=> console.log('SW registered'));
     }

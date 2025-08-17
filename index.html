@@ -7,12 +7,12 @@
   <title>席決めくじ引き</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=21" />
+  <link rel="manifest" href="manifest.json?v=24" />
   <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="icons/icon-192.png" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./style.css?v=21" />
+  <link rel="stylesheet" href="./style.css?v=24" />
 </head>
 <body>
   <div class="app">
@@ -42,6 +42,9 @@
         <button class="btn" id="resetBtn">リセット</button>
         <button class="btn ghost" id="muteBtn" aria-pressed="false" title="効果音ミュート">🔊 サウンド</button>
         <button class="btn ghost" id="updateBtn" title="PWA更新">🔄 更新</button>
+
+        <!-- 幹事モードトグル -->
+        <button class="btn manager-toggle" id="managerBtn" title="幹事モード">🛠 幹事モード</button>
       </div>
 
       <div class="row row-hint">
@@ -56,8 +59,12 @@
       <div class="seat-legend">
         <span class="legend-item"><span class="legend-swatch legend-free"></span>空席</span>
         <span class="legend-item"><span class="legend-swatch legend-taken"></span>確定済み</span>
+        <span class="legend-item only-manager" title="幹事モード時のみ表示">
+          <span class="legend-swatch legend-edit"></span>編集対象
+        </span>
       </div>
       <div id="seatGrid" class="seat-grid" aria-label="座席マップ（番号は固定）"></div>
+      <div class="manager-hint only-manager">座席をタップして事前割り当てを編集</div>
     </section>
 
     <!-- 数字表示やステータス -->
@@ -73,8 +80,8 @@
   </div>
 
   <!-- 効果音 -->
-  <audio id="drum" src="sounds/drumroll.mp3?v=21" preload="auto" loop></audio>
-  <audio id="fanfare" src="sounds/fanfare.mp3?v=21" preload="auto"></audio>
+  <audio id="drum" src="sounds/drumroll.mp3?v=24" preload="auto" loop></audio>
+  <audio id="fanfare" src="sounds/fanfare.mp3?v=24" preload="auto"></audio>
 
   <!-- 紙吹雪＆当選オーバーレイ -->
   <canvas id="confettiCanvas"></canvas>
@@ -97,7 +104,38 @@
     </div>
   </div>
 
+  <!-- 幹事モーダル -->
+  <div id="managerOverlay" aria-hidden="true">
+    <div class="manager-card">
+      <div class="manager-title">幹事モード：<span id="managerSeatTitle">席 -</span></div>
+
+      <div class="manager-row">
+        <label for="managerNameSelect">名前を選択</label>
+        <select id="managerNameSelect"></select>
+      </div>
+
+      <div class="manager-actions">
+        <button class="btn manager-apply" id="managerApplyBtn">この席に割り当て</button>
+        <button class="btn ghost manager-clear" id="managerClearBtn">割り当て解除</button>
+      </div>
+
+      <div class="manager-divider"></div>
+
+      <div class="manager-actions">
+        <button class="btn ghost" id="managerExportBtn" title="seat_preset.jsonを保存">⬇️ プリセットを書き出し</button>
+        <label class="btn ghost file-label" title="seat_preset.jsonを読み込み">
+          ⬆️ プリセットを読み込み
+          <input type="file" id="managerImportInput" accept="application/json" hidden />
+        </label>
+      </div>
+
+      <div class="manager-note">※ 抽選で確定済みの席は編集できません</div>
+
+      <button class="btn manager-close" id="managerCloseBtn">閉じる</button>
+    </div>
+  </div>
+
   <!-- App -->
-  <script type="module" src="./app.js?v=21"></script>
+  <script type="module" src="./app.js?v=24"></script>
 </body>
 </html>

@@ -1,59 +1,60 @@
-const VERSION = 'v8';
-const CACHE_NAME = `seat-app-cache-${VERSION}`;
-const PRECACHE = [
-  './index.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './sounds/drumroll.mp3',
-  './sounds/fanfare.mp3',
-  './sounds/sun.mp3',
+const CACHE_VERSION = "v24";
+const CACHE_NAME = `seat-app-${CACHE_VERSION}`;
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./style.css?v=24",
+  "./app.js?v=24",
+  "./manifest.json?v=24",
+  "./data/names.json?v=24",
+  "./data/seat_layout.json?v=24",
+  "./data/seat_preset.json?v=24",
+  "./sounds/drumroll.mp3?v=24",
+  "./sounds/fanfare.mp3?v=24"
 ];
 
-self.addEventListener('install', event => {
-  self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(PRECACHE)));
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((c) => c.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener('activate', event => {
-  event.waitUntil((async () => {
-    self.clients.claim();
-    const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k !== CACHE_NAME ? caches.delete(k) : null)));
-  })());
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('fetch', event => {
-  const req = event.request;
-  const url = new URL(req.url);
-  const isNav = req.mode === 'navigate' || url.pathname.endsWith('/index.html');
+self.addEventListener("fetch", (e) => {
+  if (e.request.method !== "GET") return;
 
-  if (isNav) {
-    event.respondWith((async () => {
-      try {
-        const fresh = await fetch(req);
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone());
-        return fresh;
-      } catch {
-        return await caches.match(req) || caches.match('./index.html');
-      }
-    })());
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin) return;
+
+  // data配下はネット優先（失敗時にキャッシュ）
+  if (url.pathname.startsWith(location.pathname.replace(/\/$/, "") + "/data/")) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
     return;
   }
 
-  event.respondWith((async () => {
-    const cached = await caches.match(req);
-    if (cached) return cached;
-    const res = await fetch(req);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(req, res.clone());
-    return res;
-  })());
+  // それ以外はキャッシュ優先
+  e.respondWith(
+    caches.match(e.request).then((res) => res || fetch(e.request))
+  );
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
 });
