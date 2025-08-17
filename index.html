@@ -19,10 +19,9 @@
     <section class="hero">
       <div class="dots"></div>
       <div class="title">
-        <div class="logo">🪑</div>
+        <div class="logo">🌸</div>
         <div>
-          <h1>席決めくじ引き</h1>
-          <div class="subtitle">席の形をそのまま画面で可視化。確定すると色と名前でパッとわかる！</div>
+          <h1>8/22 施設予約サービス部　🌺新入社員歓迎会🌺　席決めアプリ🚩</h1>
         </div>
       </div>
     </section>
@@ -44,10 +43,17 @@
         <button class="btn ghost" id="updateBtn" title="PWA更新">🔄 更新</button>
         <button class="btn manager-toggle" id="managerBtn" title="幹事モード">🛠 幹事モード</button>
       </div>
-      <!-- ★ ラッキー確率の行は削除しました -->
+      <!-- ※ラッキー確率の行はv26で廃止済み -->
     </section>
 
-    <!-- 座席マップ -->
+    <!-- ▼▼▼ 並び替え：まず“ルーレット表示” ▼▼▼ -->
+    <section class="card display" aria-live="polite">
+      <div id="numberDisplay">---</div>
+      <div id="status"></div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <!-- ▼▼▼ 次に“座席マップ” ▼▼▼ -->
     <section class="seat-map card">
       <div class="seat-legend">
         <span class="legend-item"><span class="legend-swatch legend-free"></span>空席</span>
@@ -58,13 +64,6 @@
       </div>
       <div id="seatGrid" class="seat-grid" aria-label="座席マップ（番号は固定）"></div>
       <div class="manager-hint only-manager">座席をタップして事前割り当てを編集</div>
-    </section>
-
-    <!-- 数字表示やステータス -->
-    <section class="card display" aria-live="polite">
-      <div id="numberDisplay">---</div>
-      <div id="status"></div>
-      <div class="chips" id="chips"></div>
     </section>
 
     <section class="card">
@@ -86,8 +85,6 @@
       <div class="reveal-sub">タップで閉じる</div>
     </div>
   </div>
-
-  <!-- ★ ラッキー用オーバーレイ（好きな席選択）は削除しました -->
 
   <!-- 幹事モーダル -->
   <div id="managerOverlay" aria-hidden="true">
