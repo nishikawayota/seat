@@ -1,4 +1,4 @@
-const VERSION = "24"; // キャッシュ更新用
+const VERSION = "26"; // キャッシュ更新用
 
 /* ======== fetch data (names / seat layout / preset) ======== */
 async function loadData() {
@@ -35,7 +35,6 @@ const resultsDiv = document.getElementById('results');
 
 const drum = document.getElementById('drum');
 const fanfare = document.getElementById('fanfare');
-const luckyProbInput = document.getElementById('luckyProb');
 
 const confettiCanvas = document.getElementById('confettiCanvas');
 const ctx = confettiCanvas.getContext('2d');
@@ -43,10 +42,6 @@ const ctx = confettiCanvas.getContext('2d');
 const revealOverlay = document.getElementById('revealOverlay');
 const revealTitleEl = document.getElementById('revealTitle');
 const revealNumberEl = document.getElementById('revealNumber');
-
-const luckyOverlay = document.getElementById('luckyOverlay');
-const luckyTitle = document.getElementById('luckyTitle');
-const seatGridOverlay = document.getElementById('seatGridOverlay');
 
 const seatGrid = document.getElementById('seatGrid');
 
@@ -203,13 +198,7 @@ function launchConfetti(duration=1600, count=260, gold=false){
   requestAnimationFrame(tick);
 }
 
-/* ======== lucky & draw ======== */
-function isLuckyHit(){
-  const input = parseFloat(luckyProbInput.value);
-  const p = (!isNaN(input) && input>=0 && input<=1) ? input : (initialCount>0 ? (1/initialCount) : 0.1);
-  return Math.random() < p;
-}
-
+/* ======== draw (ラッキー機能は廃止) ======== */
 function startDraw(){
   const sel = currentNameSel.value;
   if (!sel) { alert('今回回す人を選んでください'); return; }
@@ -232,41 +221,15 @@ function startDraw(){
 function stopDraw(){
   if (!intervalId) return;
   clearInterval(intervalId); intervalId=null; drum.pause();
-
   if (!currentPlayer) currentPlayer = currentNameSel.value || '（名無し）';
 
-  if (seats.length>1 && isLuckyHit()) { showLuckyOverlay(); return; }
-
-  // 通常当選
+  // ★ ラッキー分岐を削除。常に通常当選。
   seats = seats.filter(n=> n!==currentNumber);
   revealTitleEl.textContent = `${currentPlayer} さんは…`;
   revealNumberEl.textContent = currentNumber;
   revealOverlay.style.display='grid';
   if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
   launchConfetti(1600, 260, false);
-}
-
-/* ======== lucky overlay ======== */
-function showLuckyOverlay(){
-  luckyTitle.textContent = `✨ ラッキー！ ${currentPlayer} さんは好きな席を選ぶことができます！ ✨`;
-  seatGridOverlay.innerHTML='';
-  [...seats].sort((a,b)=>a-b).forEach(n=>{
-    const btn=document.createElement('button'); btn.className='seat-btn'; btn.textContent=n;
-    btn.addEventListener('click', ()=> chooseLuckySeat(n), { once:true });
-    seatGridOverlay.appendChild(btn);
-  });
-  luckyOverlay.style.display='grid';
-  if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
-  launchConfetti(1800, 280, true);
-}
-function chooseLuckySeat(n){
-  currentNumber = n;
-  seats = seats.filter(x=> x!==n);
-  luckyOverlay.style.display='none';
-  resultsDiv.innerHTML += `<div class="result-item">🎉 <strong>ラッキー！</strong> <strong>${currentPlayer}</strong> さんは 好きな席 <strong>${currentNumber}</strong> を選びました！</div>`;
-  numberDisplay.textContent='---';
-  commitSeat(currentNumber, currentPlayer);
-  finishOne();
 }
 
 /* ======== normal overlay close ======== */
@@ -307,10 +270,10 @@ function resetAll(){
   startBtn.disabled=false; startBtn.style.opacity=1; stopBtn.disabled=false; stopBtn.style.display='none';
 
   namesAssignedDraw.clear();
-  initFromLayout(); // ← ここでpreset再適用＆namesAssignedPreset再構築
+  initFromLayout(); // プリセット再適用
   renderNameSelect();
 
-  revealOverlay.style.display='none'; luckyOverlay.style.display='none';
+  revealOverlay.style.display='none';
   confettiCanvas.style.display='none';
   updateStatus();
 }
@@ -354,9 +317,7 @@ function openManagerModal(seatNo){
   const currentName = seatPreset[seatNo] || null;
 
   const options = [];
-  if (currentName) {
-    options.push(currentName); // 先頭に現在名
-  }
+  if (currentName) options.push(currentName);
   names.forEach(n => {
     if (n === currentName) return;
     if (!assigned.has(n)) options.push(n);
@@ -391,7 +352,6 @@ managerApplyBtn.addEventListener('click', ()=>{
   const name = managerNameSelect.value;
   if (!name) return;
 
-  // その名前が抽選で確定済みなら不可
   if (namesAssignedDraw.has(name)) { alert('その方は抽選で確定済みです。'); return; }
 
   applyPreset(managerSeatNo, name);
@@ -422,7 +382,6 @@ managerImportInput.addEventListener('change', async (e)=>{
     const text = await file.text();
     const json = JSON.parse(text);
 
-    // すでに抽選で確定している席が含まれていないか軽くチェック
     for (const [k,v] of Object.entries(json)){
       const no = parseInt(k,10);
       const el = seatCellByNo.get(no);
@@ -433,7 +392,7 @@ managerImportInput.addEventListener('change', async (e)=>{
     }
 
     seatPreset = json || {};
-    initFromLayout();     // プリセット再適用（抽選結果は維持：namesAssignedDrawはクリアしない）
+    initFromLayout();
     renderNameSelect();
     alert('プリセットを読み込みました。必要なら書き出して保存してください。');
   }catch(err){
@@ -450,18 +409,14 @@ function applyPreset(seatNo, name){
   if (!el) return;
   if (el.classList.contains('is-draw')) return; // 抽選確定席は不可
 
-  // 既存のプリセットがあれば一旦解除
   const prev = seatPreset[seatNo];
   if (prev) namesAssignedPreset.delete(prev);
 
-  // もしこの席が抽選対象に戻っていたら、プリセットで再度除外
   seats = seats.filter(n => n !== seatNo);
 
-  // UI更新
   el.classList.add('is-taken','is-preset');
   el.querySelector('.name').textContent = name;
 
-  // 状態更新
   seatPreset[seatNo] = name;
   seatNameByNo.set(seatNo, name);
   namesAssignedPreset.add(name);
@@ -473,7 +428,7 @@ function applyPreset(seatNo, name){
 function clearPreset(seatNo){
   const el = seatCellByNo.get(seatNo);
   if (!el) return;
-  if (el.classList.contains('is-draw')) return; // 抽選確定席は不可
+  if (el.classList.contains('is-draw')) return;
 
   const prev = seatPreset[seatNo];
   if (prev){
@@ -481,11 +436,9 @@ function clearPreset(seatNo){
     delete seatPreset[seatNo];
   }
 
-  // UI更新：見た目を空席に戻す
   el.classList.remove('is-taken','is-preset');
   el.querySelector('.name').textContent = '';
 
-  // 状態更新：抽選対象へ復帰（重複追加防止）
   if (!seats.includes(seatNo)) seats.push(seatNo);
   seats.sort((a,b)=>a-b);
   seatNameByNo.delete(seatNo);

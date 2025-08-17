@@ -7,12 +7,12 @@
   <title>席決めくじ引き</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=24" />
+  <link rel="manifest" href="manifest.json?v=26" />
   <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="icons/icon-192.png" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./style.css?v=24" />
+  <link rel="stylesheet" href="./style.css?v=26" />
 </head>
 <body>
   <div class="app">
@@ -27,7 +27,7 @@
       </div>
     </section>
 
-    <!-- BIG CTA: Start / Stop だけを大きく -->
+    <!-- BIG CTA: Start / Stop -->
     <section class="cta-bar">
       <button class="cta" id="startBtn">スタート</button>
       <button class="cta warn" id="stopBtn" style="display:none;">ストップ！</button>
@@ -42,19 +42,12 @@
         <button class="btn" id="resetBtn">リセット</button>
         <button class="btn ghost" id="muteBtn" aria-pressed="false" title="効果音ミュート">🔊 サウンド</button>
         <button class="btn ghost" id="updateBtn" title="PWA更新">🔄 更新</button>
-
-        <!-- 幹事モードトグル -->
         <button class="btn manager-toggle" id="managerBtn" title="幹事モード">🛠 幹事モード</button>
       </div>
-
-      <div class="row row-hint">
-        <span>ラッキー抽選の確率</span>
-        <input type="number" id="luckyProb" step="0.001" min="0" max="1" placeholder="未設定なら 1/席数" />
-        <span>（0〜1、例：0.1で10%）</span>
-      </div>
+      <!-- ★ ラッキー確率の行は削除しました -->
     </section>
 
-    <!-- 座席マップ（レイアウト準拠） -->
+    <!-- 座席マップ -->
     <section class="seat-map card">
       <div class="seat-legend">
         <span class="legend-item"><span class="legend-swatch legend-free"></span>空席</span>
@@ -80,8 +73,8 @@
   </div>
 
   <!-- 効果音 -->
-  <audio id="drum" src="sounds/drumroll.mp3?v=24" preload="auto" loop></audio>
-  <audio id="fanfare" src="sounds/fanfare.mp3?v=24" preload="auto"></audio>
+  <audio id="drum" src="sounds/drumroll.mp3?v=26" preload="auto" loop></audio>
+  <audio id="fanfare" src="sounds/fanfare.mp3?v=26" preload="auto"></audio>
 
   <!-- 紙吹雪＆当選オーバーレイ -->
   <canvas id="confettiCanvas"></canvas>
@@ -94,15 +87,7 @@
     </div>
   </div>
 
-  <!-- ラッキー（好きな席を選べる） -->
-  <div id="luckyOverlay" aria-hidden="true">
-    <div class="lucky-card">
-      <div id="luckyTitle" class="lucky-title">✨ ラッキー！好きな席を選ぶことができます！ ✨</div>
-      <div class="seat-list">残っている席から1つ選んでください。</div>
-      <div id="seatGridOverlay" class="seat-grid-overlay" style="margin-top:10px"></div>
-      <div class="overlay-note">※タップすると確定します</div>
-    </div>
-  </div>
+  <!-- ★ ラッキー用オーバーレイ（好きな席選択）は削除しました -->
 
   <!-- 幹事モーダル -->
   <div id="managerOverlay" aria-hidden="true">
@@ -136,6 +121,6 @@
   </div>
 
   <!-- App -->
-  <script type="module" src="./app.js?v=24"></script>
+  <script type="module" src="./app.js?v=26"></script>
 </body>
 </html>
