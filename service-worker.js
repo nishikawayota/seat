@@ -1,16 +1,17 @@
-const CACHE_VERSION = "v26";
+const CACHE_VERSION = "v29";
 const CACHE_NAME = `seat-app-${CACHE_VERSION}`;
 const ASSETS = [
   "./",
   "./index.html",
-  "./style.css?v=26",
-  "./app.js?v=26",
-  "./manifest.json?v=26",
-  "./data/names.json?v=26",
-  "./data/seat_layout.json?v=26",
-  "./data/seat_preset.json?v=26",
-  "./sounds/drumroll.mp3?v=26",
-  "./sounds/fanfare.mp3?v=26"
+  "./style.css?v=29",
+  "./app.js?v=29",
+  "./manifest.json?v=29",
+  "./data/names.json?v=29",
+  "./data/names_by_mode.json?v=29",  // ← 使っていれば残す/無ければ削ってOK
+  "./data/seat_layout.json?v=29",
+  "./data/seat_preset.json?v=29",
+  "./sounds/drumroll.mp3?v=29",
+  "./sounds/fanfare.mp3?v=29"
 ];
 
 self.addEventListener("install", (e) => {

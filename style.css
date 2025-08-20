@@ -256,4 +256,17 @@
     .seat-grid{ gap:8px; }
     .seat{ min-height: 50px; padding:6px; }
   }
+/* 固定席の見た目（淡い金色で強調） */
+.seat.is-fixed{
+    background: linear-gradient(180deg, #fffbea, #fff3c4);
+    border-color: #facc15;
+  }
+  .seat.is-fixed .no{ color:#92400e; }
+  .seat.is-fixed .name{ color:#92400e; font-weight:900; }
   
+  /* 凡例（固定席）— index.html で凡例を出す場合のみ */
+  .legend-fixed{
+    background:#fff3c4;
+    border-color:#facc15;
+  }
+    

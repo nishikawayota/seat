@@ -7,12 +7,12 @@
   <title>席決めくじ引き</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=26" />
+  <link rel="manifest" href="manifest.json?v=29" />
   <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="icons/icon-192.png" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./style.css?v=26" />
+  <link rel="stylesheet" href="./style.css?v=29" />
 </head>
 <body>
   <div class="app">
@@ -38,22 +38,26 @@
         <label for="currentName">今回回す人</label>
         <select id="currentName" aria-label="参加者を選択"></select>
 
+        <div class="mode-group" role="group" aria-label="抽選モード">
+          <button class="btn" id="modeMaleBtn" aria-pressed="true">👨 男性モード</button>
+          <button class="btn ghost" id="modeFemaleBtn" aria-pressed="false">👩 女性モード</button>
+        </div>
+
         <button class="btn" id="resetBtn">リセット</button>
         <button class="btn ghost" id="muteBtn" aria-pressed="false" title="効果音ミュート">🔊 サウンド</button>
         <button class="btn ghost" id="updateBtn" title="PWA更新">🔄 更新</button>
         <button class="btn manager-toggle" id="managerBtn" title="幹事モード">🛠 幹事モード</button>
       </div>
-      <!-- ※ラッキー確率の行はv26で廃止済み -->
     </section>
 
-    <!-- ▼▼▼ 並び替え：まず“ルーレット表示” ▼▼▼ -->
+    <!-- ルーレット表示 -->
     <section class="card display" aria-live="polite">
       <div id="numberDisplay">---</div>
       <div id="status"></div>
       <div class="chips" id="chips"></div>
     </section>
 
-    <!-- ▼▼▼ 次に“座席マップ” ▼▼▼ -->
+    <!-- 座席マップ -->
     <section class="seat-map card">
       <div class="seat-legend">
         <span class="legend-item"><span class="legend-swatch legend-free"></span>空席</span>
@@ -61,6 +65,8 @@
         <span class="legend-item only-manager" title="幹事モード時のみ表示">
           <span class="legend-swatch legend-edit"></span>編集対象
         </span>
+        <!-- 任意：固定席の凡例（見た目で区別したい場合） -->
+        <span class="legend-item"><span class="legend-swatch legend-fixed"></span>固定席</span>
       </div>
       <div id="seatGrid" class="seat-grid" aria-label="座席マップ（番号は固定）"></div>
       <div class="manager-hint only-manager">座席をタップして事前割り当てを編集</div>
@@ -72,8 +78,8 @@
   </div>
 
   <!-- 効果音 -->
-  <audio id="drum" src="sounds/drumroll.mp3?v=26" preload="auto" loop></audio>
-  <audio id="fanfare" src="sounds/fanfare.mp3?v=26" preload="auto"></audio>
+  <audio id="drum" src="sounds/drumroll.mp3?v=29" preload="auto" loop></audio>
+  <audio id="fanfare" src="sounds/fanfare.mp3?v=29" preload="auto"></audio>
 
   <!-- 紙吹雪＆当選オーバーレイ -->
   <canvas id="confettiCanvas"></canvas>
@@ -111,13 +117,13 @@
         </label>
       </div>
 
-      <div class="manager-note">※ 抽選で確定済みの席は編集できません</div>
+      <div class="manager-note">※ 抽選で確定済み／固定席は編集できません</div>
 
       <button class="btn manager-close" id="managerCloseBtn">閉じる</button>
     </div>
   </div>
 
   <!-- App -->
-  <script type="module" src="./app.js?v=26"></script>
+  <script type="module" src="./app.js?v=29"></script>
 </body>
 </html>
