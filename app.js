@@ -355,7 +355,7 @@ function stopDraw(){
 /* ======== overlay close ======== */
 revealOverlay.addEventListener('click', ()=>{
   revealOverlay.style.display='none';
-  resultsDiv.innerHTML += `<div class="result-item">→ <strong>${currentPlayer}</strong> さんは <strong>席番号 ${currentNumber}</strong> に決定しました。</div>`;
+  resultsDiv.innerHTML += `<div class="result-item">→ <strong>${currentPlayer}</strong> は <strong>席番号 ${currentNumber}</strong> に決定しました。</div>`;
   numberDisplay.textContent='---';
   commitSeat(currentNumber, currentPlayer);
   finishOne();
