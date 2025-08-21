@@ -345,7 +345,7 @@ function stopDraw(){
   if (!currentPlayer) currentPlayer = currentNameSel.value || '（名無し）';
 
   seats = seats.filter(n=> n!==currentNumber);     // 全体残席から除外（他モードにも効く）
-  revealTitleEl.textContent = `${currentPlayer} さんは…`;
+  revealTitleEl.textContent = `${currentPlayer} は…`;
   revealNumberEl.textContent = currentNumber;
   revealOverlay.style.display='grid';
   if (!muted) { try { fanfare.currentTime=0; fanfare.play(); } catch(e){} }
